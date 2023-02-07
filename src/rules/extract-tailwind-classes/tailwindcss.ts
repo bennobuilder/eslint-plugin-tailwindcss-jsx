@@ -89,6 +89,12 @@ export function getTailwindContext(
   return tailwindContext;
 }
 
+function extractStringBetweenBrackets(value: string): string {
+  const startIndex = value.indexOf('[') + 1;
+  const endIndex = value.indexOf(']');
+  return value.substring(startIndex, endIndex);
+}
+
 export function getOutsourceIdentifierFromClassName(className: string): {
   className: string;
   identifier: string | null;
@@ -102,11 +108,6 @@ export function getOutsourceIdentifierFromClassName(className: string): {
   if (EXTRACT_IDENTIFIER_REGEX.test(className)) {
     const identifiers = EXTRACT_IDENTIFIER_REGEX.exec(className);
     if (identifiers != null && identifiers.length > 0) {
-      function extractStringBetweenBrackets(value: string): string {
-        const startIndex = value.indexOf('[') + 1;
-        const endIndex = value.indexOf(']');
-        return value.substring(startIndex, endIndex);
-      }
       response.identifier = extractStringBetweenBrackets(identifiers[0]);
       response.className = className.replace(EXTRACT_IDENTIFIER_REGEX, '');
     }

@@ -2,7 +2,7 @@
 
 > WIP
 
-Rules enforcing best practices and consistency using [Tailwind CSS](https://tailwindcss.com/) focused on React `.jsx` & `.tsx`.
+A ESLint plugin for [Tailwind CSS](https://tailwindcss.com/) v3.0+ that enforces best practices and consistency focused on React `.jsx` & `.tsx`.
 
 ### Resources
 - [Docs](https://eslint.org/docs/latest/extend/custom-rules)
