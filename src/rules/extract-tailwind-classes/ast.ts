@@ -7,7 +7,7 @@ function getLiteralValue(node: TSESTree.Literal): TClassNameExtractionObject {
   const range = extractRangeFromNode(node);
   return {
     start: range[0] + 1,
-    end: range[1] + 1,
+    end: range[1] - 1,
     value: `${node.value}`,
     node,
     children: [],

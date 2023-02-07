@@ -112,10 +112,7 @@ export default createEslintRule<TOptions, TMessageIds>({
                 fix: (fixer) => {
                   return fixer.replaceTextRange(
                     [start, end],
-                    `"${buildInlineClassName(
-                      sortedClasses,
-                      splitted.whitespaces
-                    )}"`
+                    buildInlineClassName(sortedClasses, splitted.whitespaces)
                   );
                 },
               });

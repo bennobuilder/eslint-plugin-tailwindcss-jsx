@@ -33,8 +33,13 @@ ruleTester.run(RULE_NAME, rule as any, {
   invalid: [
     // Sorting Tests
     {
-      code: `<div className="w-12 lg:w-6 w-12">removeDuplicates: false</div>`,
-      output: `<div className="w-12 w-12 lg:w-6">removeDuplicates: false</div>`,
+      code: `<div className="w-12 lg:w-6 w-12">jeff</div>`,
+      output: `<div className="w-12 w-12 lg:w-6">jeff</div>`,
+      errors: [{ messageId: 'invalidOrder' }],
+    },
+    {
+      code: `<div className={"w-12 lg:w-6 w-12"}>jeff</div>`,
+      output: `<div className={"w-12 w-12 lg:w-6"}>jeff</div>`,
       errors: [{ messageId: 'invalidOrder' }],
     },
 
