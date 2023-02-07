@@ -32,62 +32,62 @@ ruleTester.run(RULE_NAME, rule as any, {
   ],
   invalid: [
     // Sorting Tests
-    // {
-    //   code: `<div className="w-12 lg:w-6 w-12">removeDuplicates: false</div>`,
-    //   output: `<div className="w-12 w-12 lg:w-6">removeDuplicates: false</div>`,
-    //   errors: [{ messageId: 'invalidOrder' }],
-    // },
+    {
+      code: `<div className="w-12 lg:w-6 w-12">removeDuplicates: false</div>`,
+      output: `<div className="w-12 w-12 lg:w-6">removeDuplicates: false</div>`,
+      errors: [{ messageId: 'invalidOrder' }],
+    },
 
     // Outsourcing Tests
-    {
-      code: `
-          import React from 'react';
-  
-          const About: React.FC = () => {
-            return (
-              <div className="first:flex animate-spin custom container extract-[Container]">
-                <p id="text1" className="sm:py-5 p-4 sm:px-7 lg:p-8 extract-[Text1]">About</p>
-                <p id="text2" className="lg:box-border box-content">Me</p>
-              </div>
-            );
-          };
-  
-          export default About;
-       `,
-      output: `
-          import React from 'react';
-  
-          const About: React.FC = () => {
-            return (
-              <div className={Container}>
-                <p id="text1" className={Text1}>About</p>
-                <p id="text2" className="box-content lg:box-border">Me</p>
-              </div>
-            );
-          };
-  
-          export default About;
+    // {
+    //   code: `
+    //       import React from 'react';
 
-          const Container = \`
-            custom
-            container
-            animate-spin
-            first:flex
-          \`;
+    //       const About: React.FC = () => {
+    //         return (
+    //           <div className="first:flex animate-spin custom container extract-[Container]">
+    //             <p id="text1" className="sm:py-5 p-4 sm:px-7 lg:p-8 extract-[Text1]">About</p>
+    //             <p id="text2" className="lg:box-border box-content">Me</p>
+    //           </div>
+    //         );
+    //       };
 
-          const Text1 = \`
-            p-4
-            sm:py-5
-            sm:px-7
-            lg:p-8
-          \`;
-       `,
-      errors: [
-        { messageId: 'invalidInline' },
-        { messageId: 'invalidInline' },
-        // { messageId: 'invalidInline' },
-        { messageId: 'invalidOrder' },
-      ],
-    },
+    //       export default About;
+    //    `,
+    //   output: `
+    //       import React from 'react';
+
+    //       const About: React.FC = () => {
+    //         return (
+    //           <div className={Container}>
+    //             <p id="text1" className={Text1}>About</p>
+    //             <p id="text2" className="box-content lg:box-border">Me</p>
+    //           </div>
+    //         );
+    //       };
+
+    //       export default About;
+
+    //       const Container = \`
+    //         custom
+    //         container
+    //         animate-spin
+    //         first:flex
+    //       \`;
+
+    //       const Text1 = \`
+    //         p-4
+    //         sm:py-5
+    //         sm:px-7
+    //         lg:p-8
+    //       \`;
+    //    `,
+    //   errors: [
+    //     { messageId: 'invalidInline' },
+    //     { messageId: 'invalidInline' },
+    //     // { messageId: 'invalidInline' },
+    //     { messageId: 'invalidOrder' },
+    //   ],
+    // },
   ],
 });

@@ -95,7 +95,7 @@ function extractStringBetweenBrackets(value: string): string {
   return value.substring(startIndex, endIndex);
 }
 
-export function getOutsourceIdentifierFromClassName(className: string): {
+export function outsourceIdentifierFromClassName(className: string): {
   className: string;
   identifier: string | null;
 } {
@@ -188,6 +188,11 @@ export function buildOutsourcedClassName(
   )}\n${columnSpaceLeftConst}\`;`;
 }
 
+function bigSign(bigIntValue: number) {
+  // @ts-ignore
+  return (bigIntValue > 0n) - (bigIntValue < 0n);
+}
+
 export function sortTailwindClassList(
   classList: string[],
   tailwindContext: TTailwindContext
@@ -198,13 +203,11 @@ export function sortTailwindClassList(
     );
     return classList;
   }
+
+  // Get TailwindCSS suggested class name order: [className, order/weight]
   const classNamesWithOrder = tailwindContext.getClassOrder(classList);
 
-  function bigSign(bigIntValue: any) {
-    // @ts-ignore
-    return (bigIntValue > 0n) - (bigIntValue < 0n);
-  }
-
+  // Order class names based on 'order/weight' value
   return classNamesWithOrder
     .sort(([, a], [, z]) => {
       if (a === z) return 0;
@@ -214,5 +217,5 @@ export function sortTailwindClassList(
       if (z === null) return 1;
       return bigSign(a - z);
     })
-    .map(([className, _]) => className);
+    .map(([className]) => className);
 }

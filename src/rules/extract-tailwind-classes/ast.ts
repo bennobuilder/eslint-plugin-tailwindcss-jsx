@@ -1,22 +1,22 @@
 import { TSESTree } from '@typescript-eslint/utils';
+import { TClassNameExtractionObject } from './types';
 
 function goDeep(node: TSESTree.BaseNode, childNode: TSESTree.BaseNode | null) {}
 
-function getLiteralValue(node: TSESTree.Literal): {
-  start: number;
-  end: number;
-  value: any;
-} {
+function getLiteralValue(node: TSESTree.Literal): TClassNameExtractionObject {
   const range = extractRangeFromNode(node);
-  const start = range[0] + 1;
-  const end = range[1] + 1;
-
-  return { start, end, value: node.value };
+  return {
+    start: range[0] + 1,
+    end: range[1] + 1,
+    value: `${node.value}`,
+    node,
+    children: [],
+  };
 }
 
 function handleTemplateLiteral(
   node: TSESTree.TemplateLiteral
-): { start: number; end: number; value: any }[] {
+): TClassNameExtractionObject[] {
   // TODO go deep
 
   return [];
@@ -29,26 +29,19 @@ function handleTemplateLiteral(
  */
 export function extractClassNamesFromJSXAttribute(
   node: TSESTree.JSXAttribute
-): {
-  start: number;
-  end: number;
-  value: any;
-}[] {
+): TClassNameExtractionObject[] {
   // Extract Literal from JSXAttribute Node
   const literal = getLiteralFromJSXAttribute(node);
 
   // Extract value and its position from the Literal
-  const literalValues: { start: number; end: number; value: any }[] = [];
+  const classNameExtractions: TClassNameExtractionObject[] = [];
   if (literal?.type === TSESTree.AST_NODE_TYPES.Literal) {
-    literalValues.push(getLiteralValue(literal));
+    classNameExtractions.push(getLiteralValue(literal));
   } else if (literal?.type === TSESTree.AST_NODE_TYPES.TemplateLiteral) {
-    literalValues.concat(handleTemplateLiteral(literal));
+    classNameExtractions.concat(handleTemplateLiteral(literal));
   }
 
-  // TODO split literalValues to classes and stuff
-  // or do this in separate function is better I suppose
-
-  return [];
+  return classNameExtractions;
 
   // TODO after getting these classes, each array element will be reported and fixed inline
   // and if to extract reported and extracted

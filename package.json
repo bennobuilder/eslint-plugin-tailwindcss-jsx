@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "@jest/globals": "^29.4.1",
+    "@types/eslint": "^8.21.0",
     "@types/jest": "^29.4.0",
     "@types/lodash.get": "^4.4.7",
     "@types/object-hash": "^3.0.2",

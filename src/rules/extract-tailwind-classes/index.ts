@@ -14,7 +14,7 @@ import { RULE_NAME } from './constants';
 import {
   buildInlineClassName,
   buildOutsourcedClassName,
-  getOutsourceIdentifierFromClassName,
+  outsourceIdentifierFromClassName as outsourceExtractIdentifierFromClassName,
   getTailwindConfigPath,
   getTailwindContext,
   sortTailwindClassList,
@@ -79,16 +79,20 @@ export default createEslintRule<TOptions, TMessageIds>({
       // Start at the "JSXAttribute" AST Node Type,
       // as we know that the "className" is a JSX attribute
       JSXAttribute: (node) => {
-        const classNameObjects = extractClassNamesFromJSXAttribute(node);
+        const classNameExtractions = extractClassNamesFromJSXAttribute(node);
 
-        // TODO outsourcing Template Literals won't work this way
-        // https://astexplorer.net/#/gist/5228f6df207afd9abdc39f94ad8a3f03/f6d8d3e11fe2470ed123dbedde717727fe5b8f0a
-        for (const classNameObject of classNameObjects) {
+        for (const classNameExtraction of classNameExtractions) {
+          const start = classNameExtraction.start;
+          const end = classNameExtraction.end;
+
           // Split className into classes & spaces and extract outsource identifier
-          const { className, identifier } = getOutsourceIdentifierFromClassName(
-            classNameObject.value
-          );
+          const { className, identifier } =
+            outsourceExtractIdentifierFromClassName(classNameExtraction.value);
 
+          // TODO handle deep
+          // https://astexplorer.net/#/gist/5228f6df207afd9abdc39f94ad8a3f03/f6d8d3e11fe2470ed123dbedde717727fe5b8f0a
+
+          // Split className to classes and whitespaces
           const splitted = splitClassName(className);
           if (splitted == null || splitted.classes.length <= 0) {
             continue;
@@ -107,7 +111,7 @@ export default createEslintRule<TOptions, TMessageIds>({
                 messageId: 'invalidOrder',
                 fix: (fixer) => {
                   return fixer.replaceTextRange(
-                    [classNameObject.start, classNameObject.end],
+                    [start, end],
                     `"${buildInlineClassName(
                       sortedClasses,
                       splitted.whitespaces

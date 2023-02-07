@@ -18,5 +18,6 @@ module.exports = {
     'no-var': ERROR,
     'prefer-const': WARNING,
     '@typescript-eslint/no-empty-function': WARNING,
+    '@typescript-eslint/ban-ts-comment': WARNING,
   },
 };
