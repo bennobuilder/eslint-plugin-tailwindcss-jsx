@@ -1,7 +1,49 @@
 import { TSESTree } from '@typescript-eslint/utils';
 import { TClassNameExtractionObject } from './types';
 
-function goDeep(node: TSESTree.BaseNode, childNode: TSESTree.BaseNode | null) {}
+function goDeep(
+  node: TSESTree.Node,
+  childNode: TSESTree.Node | null
+): TClassNameExtractionObject[] {
+  const classNameExtractions: TClassNameExtractionObject[] = [];
+
+  if (childNode != null) {
+    switch (childNode.type) {
+      case 'Identifier':
+        // TODO
+        break;
+
+      case TSESTree.AST_NODE_TYPES.TemplateLiteral:
+        classNameExtractions.concat(
+          ...childNode.expressions.map((expression) => goDeep(node, expression))
+        );
+        classNameExtractions.concat(
+          ...childNode.quasis.map((quasis) => goDeep(node, quasis))
+        );
+        break;
+
+      case TSESTree.AST_NODE_TYPES.ConditionalExpression:
+        classNameExtractions.concat(goDeep(node, childNode.consequent));
+        classNameExtractions.concat(goDeep(node, childNode.alternate));
+        break;
+
+      case TSESTree.AST_NODE_TYPES.LogicalExpression:
+        classNameExtractions.concat(goDeep(node, childNode.right));
+        break;
+
+      case TSESTree.AST_NODE_TYPES.ArrayExpression:
+        classNameExtractions.concat(
+          ...childNode.elements.map((element) => goDeep(node, element))
+        );
+        break;
+
+      default:
+      // do nothing
+    }
+  }
+
+  return classNameExtractions;
+}
 
 function getLiteralValue(node: TSESTree.Literal): TClassNameExtractionObject {
   const range = extractRangeFromNode(node);

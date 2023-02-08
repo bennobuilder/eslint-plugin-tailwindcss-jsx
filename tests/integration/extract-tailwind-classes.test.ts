@@ -102,29 +102,29 @@ ruleTester.run(RULE_NAME, rule as any, {
   invalid: [
     // ...invalidTestCases,
     // WIP
-    // {
-    //   code: `
-    //   const buttonClasses = ctl(\`
-    //     \${fullWidth ? "w-12" : "w-6"}
-    //     flex
-    //     container
-    //     \${fullWidth ? "sm:w-7" : "sm:w-4"}
-    //     lg:py-4
-    //     sm:py-6
-    //     \${hasError && "bg-red"}
-    //   \`);`,
-    //   output: `
-    //   const buttonClasses = ctl(\`
-    //     \${fullWidth ? "w-12" : "w-6"}
-    //     container
-    //     flex
-    //     \${fullWidth ? "sm:w-7" : "sm:w-4"}
-    //     sm:py-6
-    //     lg:py-4
-    //     \${hasError && "bg-red"}
-    //   \`);`,
-    //   errors: [{ messageId: 'invalidOrder' }],
-    // },
+    {
+      code: `
+       const buttonClasses = ctl(\`
+         \${fullWidth ? "w-12" : "w-6"}
+         flex
+         container
+         \${fullWidth ? "sm:w-7" : "sm:w-4"}
+         lg:py-4
+         sm:py-6
+         \${hasError && "bg-red"}
+       \`);`,
+      output: `
+       const buttonClasses = ctl(\`
+         \${fullWidth ? "w-12" : "w-6"}
+         container
+         flex
+         \${fullWidth ? "sm:w-7" : "sm:w-4"}
+         sm:py-6
+         lg:py-4
+         \${hasError && "bg-red"}
+       \`);`,
+      errors: [{ messageId: 'invalidOrder' }],
+    },
     // Wrapper function
     // {
     //   code: 'ctl(`p-10 w-full ${some}`)',
