@@ -1,5 +1,4 @@
 import path from 'path';
-import { TOptions } from './types';
 import objectHash from 'object-hash';
 import {
   createContext as createTailwindContext,
@@ -19,11 +18,9 @@ import { isBlank } from '../../utils/helper';
 const tailwindContextCache = new Map<string, { context: any; hash: string }>();
 
 export function getTailwindConfigPath(
-  options: TOptions,
+  tailwindConfigPathFromOptions?: string,
   eslintCWD?: string
 ): string | null {
-  const tailwindConfigPathFromOptions =
-    options.length > 0 ? options[0].tailwindConfig : null;
   let tailwindConfigPath: string | null = null;
   const baseDir = eslintCWD != null ? eslintCWD : process.cwd();
 

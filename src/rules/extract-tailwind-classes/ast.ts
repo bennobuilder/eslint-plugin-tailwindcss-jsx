@@ -25,7 +25,7 @@ function handleTemplateLiteral(
 /**
  * Extract class names from JSXAttribute Node that need to be sorted.
  *
- * @param node JSXAttribute Node
+ * @param node - JSXAttribute Node
  */
 export function extractClassNamesFromJSXAttribute(
   node: TSESTree.JSXAttribute
@@ -42,16 +42,6 @@ export function extractClassNamesFromJSXAttribute(
   }
 
   return classNameExtractions;
-
-  // TODO after getting these classes, each array element will be reported and fixed inline
-  // and if to extract reported and extracted
-  // context.report({
-  //      node: node,
-  //      messageId: 'invalidOrder',
-  //      fix: function (fixer) {
-  //        return fixer.replaceTextRange([start, end], orderedClassNameValue);
-  //      },
-  //    });
 }
 
 /**
@@ -96,4 +86,32 @@ function extractValueFromNode(node: TSESTree.Literal) {
 function extractRangeFromNode(node: TSESTree.Literal): TSESTree.Range {
   // TODO support other Node types
   return node.range;
+}
+
+/**
+ * Checks wether the JSXAttribute Node might contain TailwindCSS class names.
+ *
+ * @param node - JSXAttribute Node
+ * @param classNameRegex - Regex the Node has to match
+ * @returns
+ */
+export function isClassAttribute(
+  node: TSESTree.JSXAttribute,
+  classNameRegex: RegExp[]
+): boolean {
+  let name = '';
+
+  // Extract attribute name
+  if (node.name.type === TSESTree.AST_NODE_TYPES.JSXIdentifier) {
+    name = node.name.name;
+  }
+
+  // Check whether match
+  let match = false;
+  for (const regex of classNameRegex) {
+    match = new RegExp(regex).test(name);
+    if (match) break;
+  }
+
+  return match;
 }

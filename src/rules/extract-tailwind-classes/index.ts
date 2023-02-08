@@ -20,11 +20,14 @@ import {
   sortTailwindClassList,
   splitClassName,
 } from './tailwindcss';
-import { TOptions, TMessageIds } from './types';
+import { TOptions, TMessageIds, TConfig } from './types';
 import { TTailwindContext } from 'tailwindcss/lib/lib/setupContextUtils';
 import { RuleFix } from '@typescript-eslint/utils/dist/ts-eslint';
 import { TSESTree } from '@typescript-eslint/utils';
-import { extractClassNamesFromJSXAttribute } from './ast';
+import {
+  extractClassNamesFromJSXAttribute,
+  isClassAttribute as isClassNameAttribute,
+} from './ast';
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -42,9 +45,38 @@ export default createEslintRule<TOptions, TMessageIds>({
     schema: [
       {
         type: 'object',
+        required: [],
         properties: {
-          tailwindConfig: {
+          tailwindConfigPath: {
             type: 'string',
+          },
+          classNameRegex: {
+            type: 'object',
+            oneOf: [
+              {
+                type: 'object',
+                required: ['regex'],
+                properties: {
+                  regex: {
+                    type: 'array',
+                    items: {
+                      instanceof: 'RegExp',
+                    },
+                  },
+                  overwrite: {
+                    type: 'boolean',
+                  },
+                },
+              },
+              {
+                instanceof: 'RegExp',
+              },
+            ],
+          },
+          callees: {
+            type: 'array',
+            items: { type: 'string', minLength: 0 },
+            uniqueItems: true,
           },
         },
         additionalProperties: false,
@@ -59,10 +91,18 @@ export default createEslintRule<TOptions, TMessageIds>({
   },
   defaultOptions: [{}],
   create: (context) => {
+    let config: TConfig | null = null;
+    if (context.options.length > 0) {
+      config = context.options[0];
+    }
+
     const extractedTailwindClasses: Record<string, string[]> = {};
 
-    // Get Tailwind Context
-    const tailwindConfigPath = getTailwindConfigPath(context.options);
+    // Get TailwindCSS context based on TailwindCSS config path specified in config
+    const tailwindConfigPath = getTailwindConfigPath(
+      config?.tailwindConfigPath,
+      context?.getCwd != null ? context.getCwd() : undefined
+    );
     let tailwindContext: TTailwindContext | null = null;
     if (tailwindConfigPath != null) {
       tailwindContext = getTailwindContext(tailwindConfigPath);
@@ -75,10 +115,30 @@ export default createEslintRule<TOptions, TMessageIds>({
       );
     }
 
+    // Get class name regex from config
+    let classNameRegex: RegExp[] = [/\b(class|className)\b/g];
+    if (config != null && config.classNameRegex != null) {
+      const configClassRegex = config.classNameRegex;
+      if (configClassRegex instanceof RegExp) {
+        classNameRegex = [configClassRegex];
+      } else {
+        classNameRegex = configClassRegex.overwrite
+          ? configClassRegex.regex
+          : classNameRegex.concat(configClassRegex.regex);
+      }
+    }
+
+    // Get callees from config
+    const callees: string[] = config?.callees ?? ['clsx', 'ctl', 'classnames'];
+
     return {
       // Start at the "JSXAttribute" AST Node Type,
       // as we know that the "className" is a JSX attribute
       JSXAttribute: (node) => {
+        // Check whether JSXAttribute Node contains class names
+        if (!isClassNameAttribute(node, classNameRegex)) return;
+
+        // Extract class names from Node
         const classNameExtractions = extractClassNamesFromJSXAttribute(node);
 
         for (const classNameExtraction of classNameExtractions) {
@@ -119,6 +179,7 @@ export default createEslintRule<TOptions, TMessageIds>({
             }
           }
 
+          // TODO fix
           // Sort and extract if identifier present
           if (identifier != null) {
             // Store classes to extract them in another event listener
