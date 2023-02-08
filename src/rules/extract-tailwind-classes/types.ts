@@ -20,6 +20,16 @@ export type TConfig = {
    * @default ["clsx", "ctl", "classnames"]
    */
   callees?: string[];
+
+  /**
+   *
+   */
+  extract?:
+    | {
+        extractionParser?: (classNames: string) => string;
+        extractDeep?: boolean;
+      }
+    | boolean;
 };
 export type TOptions = [TConfig];
 

@@ -45,7 +45,7 @@ export default createEslintRule<TOptions, TMessageIds>({
     schema: [
       {
         type: 'object',
-        required: [],
+        // required: [],
         properties: {
           tailwindConfigPath: {
             type: 'string',
@@ -136,7 +136,11 @@ export default createEslintRule<TOptions, TMessageIds>({
       // as we know that the "className" is a JSX attribute
       JSXAttribute: (node) => {
         // Check whether JSXAttribute Node contains class names
-        if (!isClassNameAttribute(node, classNameRegex)) return;
+        const { match, name: classNameAttributeName } = isClassNameAttribute(
+          node,
+          classNameRegex
+        );
+        if (!match) return;
 
         // Extract class names from Node
         const classNameExtractions = extractClassNamesFromJSXAttribute(node);
@@ -172,7 +176,12 @@ export default createEslintRule<TOptions, TMessageIds>({
                 fix: (fixer) => {
                   return fixer.replaceTextRange(
                     [start, end],
-                    buildInlineClassName(sortedClasses, splitted.whitespaces)
+                    buildInlineClassName(
+                      sortedClasses,
+                      splitted.whitespaces,
+                      splitted.prefix,
+                      splitted.suffix
+                    )
                   );
                 },
               });
@@ -201,7 +210,10 @@ export default createEslintRule<TOptions, TMessageIds>({
 
                 // Fix "Replace class names with identifier"
                 fixers.push(
-                  fixer.replaceText(node, `className={${identifier}}`)
+                  fixer.replaceText(
+                    node,
+                    `${classNameAttributeName}={${identifier}}`
+                  )
                 );
 
                 // Fix "Extract class names to identifier"
@@ -220,6 +232,20 @@ export default createEslintRule<TOptions, TMessageIds>({
             });
           }
         }
+      },
+      CallExpression: function (node) {
+        const identifier = node.callee;
+
+        // Check whether its a relevant callee
+        if (
+          identifier.type !== TSESTree.AST_NODE_TYPES.Identifier ||
+          callees.findIndex((name) => identifier.name === name) === -1
+        ) {
+          return;
+        }
+
+        // TODO
+        // https://astexplorer.net/#/gist/52d251afc60f45058d0d84a5f33cfd7e/373699cd666d160d5a14ecdbb9391ada9be91593
       },
       // Adding the TailwindCSS classes to the end of the file in each JSXAttribute Listener fix() method,
       // didn't work properly if there where multiple fixes to do,

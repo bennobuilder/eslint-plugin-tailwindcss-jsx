@@ -98,7 +98,7 @@ function extractRangeFromNode(node: TSESTree.Literal): TSESTree.Range {
 export function isClassAttribute(
   node: TSESTree.JSXAttribute,
   classNameRegex: RegExp[]
-): boolean {
+): { match: boolean; name: string } {
   let name = '';
 
   // Extract attribute name
@@ -113,5 +113,5 @@ export function isClassAttribute(
     if (match) break;
   }
 
-  return match;
+  return { match, name };
 }

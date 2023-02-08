@@ -163,13 +163,15 @@ export function splitClassName(className: string): {
 
 export function buildInlineClassName(
   classes: string[],
-  whitespaces: string[] = []
+  whitespaces: string[] = [],
+  prefix = '',
+  suffix = ''
 ) {
   let result = '';
   for (let i = 0; i < classes.length; i++) {
     result += `${classes[i]}${whitespaces[i] ?? ''}`;
   }
-  return result;
+  return prefix + result + suffix;
 }
 
 export function buildOutsourcedClassName(
@@ -180,6 +182,17 @@ export function buildOutsourcedClassName(
   const columnSpaceLeftConst = Array(columnSpaceLeft).join(' ');
   const columnSpaceLeftClassName = Array(columnSpaceLeft + 2).join(' ');
 
+  // TODO Create as extraction Parser and create a advanced one
+  // and some presets based on the advanced one. Presets Examples:
+  // const Jeff = "flex items-center";
+  // const Jeff = `
+  //  flex
+  //  items-center
+  // `;
+  // const Jeff = tss`
+  //   flex
+  //   items-center
+  // `;
   return `${columnSpaceLeftConst}const ${identifier} = \`\n${columnSpaceLeftClassName}${classes.join(
     `\n${columnSpaceLeftClassName}`
   )}\n${columnSpaceLeftConst}\`;`;
