@@ -38,5 +38,4 @@ export type TClassNameExtractionObject = {
   end: number;
   value: string;
   node: TSESTree.BaseNode;
-  children: TClassNameExtractionObject[];
 };

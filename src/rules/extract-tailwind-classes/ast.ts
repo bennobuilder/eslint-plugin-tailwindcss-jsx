@@ -6,35 +6,63 @@ function goDeep(
   childNode: TSESTree.Node | null
 ): TClassNameExtractionObject[] {
   const classNameExtractions: TClassNameExtractionObject[] = [];
+  const extractObjectKey = false;
 
   if (childNode != null) {
     switch (childNode.type) {
-      case 'Identifier':
-        // TODO
+      case TSESTree.AST_NODE_TYPES.Literal:
+        classNameExtractions.push(getLiteralValue(childNode));
         break;
 
+      // `flex ${fullWidth ? 'w-4' : 'w-2'} container lg:py8`
+      // .expressions: "${fullWidth ? 'w-4' : 'w-2'}"
+      // .quasis: "flex", "container lg:py8"
       case TSESTree.AST_NODE_TYPES.TemplateLiteral:
-        classNameExtractions.concat(
-          ...childNode.expressions.map((expression) => goDeep(node, expression))
+        childNode.quasis.forEach((expression) =>
+          classNameExtractions.push(...goDeep(node, expression))
         );
-        classNameExtractions.concat(
-          ...childNode.quasis.map((quasis) => goDeep(node, quasis))
+        childNode.quasis.forEach((quasis) =>
+          classNameExtractions.push(...goDeep(node, quasis))
         );
         break;
 
+      // "fullWidth ? 'w-4' : 'w-2'"
+      // .test: "fullWidth"
+      // .consequent: "w-4"
+      // .alternate: "w-2"
       case TSESTree.AST_NODE_TYPES.ConditionalExpression:
-        classNameExtractions.concat(goDeep(node, childNode.consequent));
-        classNameExtractions.concat(goDeep(node, childNode.alternate));
+        classNameExtractions.push(...goDeep(node, childNode.consequent));
+        classNameExtractions.push(...goDeep(node, childNode.alternate));
         break;
 
+      // "hasError && 'bg-red'"
+      // .left: "hasError"
+      // .operator: "&&"
+      // .right: "b-red"
       case TSESTree.AST_NODE_TYPES.LogicalExpression:
-        classNameExtractions.concat(goDeep(node, childNode.right));
+        classNameExtractions.push(...goDeep(node, childNode.right));
         break;
 
+      // "['bg-green', 'w-4']"
+      // .elements: "bg-green", "w-4"
       case TSESTree.AST_NODE_TYPES.ArrayExpression:
-        classNameExtractions.concat(
-          ...childNode.elements.map((element) => goDeep(node, element))
+        childNode.elements.forEach((element) =>
+          classNameExtractions.push(...goDeep(node, element))
         );
+        break;
+
+      // "{ background: 'red', apple: 'green' }"
+      // .properties: "background: 'red'", "apple: 'green'"
+      // .properties[0].key: "background"
+      // .properties[0].value: "red"
+      case TSESTree.AST_NODE_TYPES.ObjectExpression:
+        childNode.properties.forEach((property) => {
+          if (property.type === TSESTree.AST_NODE_TYPES.Property) {
+            classNameExtractions.push(
+              ...goDeep(node, extractObjectKey ? property.key : property.value)
+            );
+          }
+        });
         break;
 
       default:
@@ -52,7 +80,6 @@ function getLiteralValue(node: TSESTree.Literal): TClassNameExtractionObject {
     end: range[1] - 1,
     value: `${node.value}`,
     node,
-    children: [],
   };
 }
 
