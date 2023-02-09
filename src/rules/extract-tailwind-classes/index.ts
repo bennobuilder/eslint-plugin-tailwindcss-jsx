@@ -143,9 +143,12 @@ export default createEslintRule<TOptions, TMessageIds>({
         if (!match) return;
 
         // Extract class names from Node
-        const classNameExtractions = extractClassNamesFromJSXAttribute(node);
+        const classNameExtraction = extractClassNamesFromJSXAttribute(node);
+        if (classNameExtraction == null) return;
 
-        for (const classNameExtraction of classNameExtractions) {
+        // TODO handle classNameExtractionTree
+
+        if (classNameExtraction?.type === 'ClassNameExtraction') {
           const start = classNameExtraction.start;
           const end = classNameExtraction.end;
 
@@ -159,7 +162,7 @@ export default createEslintRule<TOptions, TMessageIds>({
           // Split className to classes and whitespaces
           const splitted = splitClassName(className);
           if (splitted == null || splitted.classes.length <= 0) {
-            continue;
+            return;
           }
 
           // Just sort if no identifier present

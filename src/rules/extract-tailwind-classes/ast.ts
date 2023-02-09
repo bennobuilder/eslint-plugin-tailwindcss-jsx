@@ -1,94 +1,118 @@
 import { TSESTree } from '@typescript-eslint/utils';
-import { TClassNameExtractionObject } from './types';
+import { TClassNameExtraction, TClassNameExtractionTree } from './types';
 
-function goDeep(
+function extractClassNamesDeep(
   node: TSESTree.Node,
-  childNode: TSESTree.Node | null
-): TClassNameExtractionObject[] {
-  const classNameExtractions: TClassNameExtractionObject[] = [];
-  const extractObjectKey = false;
+  topLevelNodeTree: TClassNameExtractionTree | null = null
+): TClassNameExtractionTree | TClassNameExtraction {
+  const classNameExtractionTree: TClassNameExtractionTree = {
+    type: 'ClassNameExtractionTree',
+    node,
+    children: [],
+  };
+  let classNameExtraction: TClassNameExtraction | null = null;
 
-  if (childNode != null) {
-    switch (childNode.type) {
-      case TSESTree.AST_NODE_TYPES.Literal:
-        classNameExtractions.push(getLiteralValue(childNode));
-        break;
+  // Handle special case 'classnames' where the class names are actually the object key
+  // https://www.npmjs.com/package/classnames
+  const extractObjectKey =
+    topLevelNodeTree?.node.type === TSESTree.AST_NODE_TYPES.CallExpression &&
+    topLevelNodeTree.node.callee.type === TSESTree.AST_NODE_TYPES.Identifier &&
+    topLevelNodeTree.node.callee.name === 'classnames';
 
-      // `flex ${fullWidth ? 'w-4' : 'w-2'} container lg:py8`
-      // .expressions: "${fullWidth ? 'w-4' : 'w-2'}"
-      // .quasis: "flex", "container lg:py8"
-      case TSESTree.AST_NODE_TYPES.TemplateLiteral:
-        childNode.quasis.forEach((expression) =>
-          classNameExtractions.push(...goDeep(node, expression))
+  switch (node.type) {
+    // "jeff"
+    // .value: "jeff"
+    case TSESTree.AST_NODE_TYPES.Literal:
+      classNameExtraction = getLiteralValue(node);
+      break;
+
+    // `flex ${fullWidth ? 'w-4' : 'w-2'} container lg:py8`
+    // .expressions: "${fullWidth ? 'w-4' : 'w-2'}"
+    // .quasis: "flex", "container lg:py8"
+    case TSESTree.AST_NODE_TYPES.TemplateLiteral:
+      node.expressions.forEach((expression) => {
+        classNameExtractionTree.children.push(
+          extractClassNamesDeep(expression, classNameExtractionTree)
         );
-        childNode.quasis.forEach((quasis) =>
-          classNameExtractions.push(...goDeep(node, quasis))
+      });
+      node.quasis.forEach((quasis) => {
+        classNameExtractionTree.children.push(
+          extractClassNamesDeep(quasis, classNameExtractionTree)
         );
-        break;
+      });
+      break;
 
-      // "fullWidth ? 'w-4' : 'w-2'"
-      // .test: "fullWidth"
-      // .consequent: "w-4"
-      // .alternate: "w-2"
-      case TSESTree.AST_NODE_TYPES.ConditionalExpression:
-        classNameExtractions.push(...goDeep(node, childNode.consequent));
-        classNameExtractions.push(...goDeep(node, childNode.alternate));
-        break;
+    case TSESTree.AST_NODE_TYPES.TemplateElement:
+      // TODO
+      break;
 
-      // "hasError && 'bg-red'"
-      // .left: "hasError"
-      // .operator: "&&"
-      // .right: "b-red"
-      case TSESTree.AST_NODE_TYPES.LogicalExpression:
-        classNameExtractions.push(...goDeep(node, childNode.right));
-        break;
+    // "fullWidth ? 'w-4' : 'w-2'"
+    // .test: "fullWidth"
+    // .consequent: "w-4"
+    // .alternate: "w-2"
+    case TSESTree.AST_NODE_TYPES.ConditionalExpression:
+      classNameExtractionTree.children.push(
+        extractClassNamesDeep(node.consequent, classNameExtractionTree)
+      );
+      classNameExtractionTree.children.push(
+        extractClassNamesDeep(node.alternate, classNameExtractionTree)
+      );
+      break;
 
-      // "['bg-green', 'w-4']"
-      // .elements: "bg-green", "w-4"
-      case TSESTree.AST_NODE_TYPES.ArrayExpression:
-        childNode.elements.forEach((element) =>
-          classNameExtractions.push(...goDeep(node, element))
-        );
-        break;
+    // "hasError && 'bg-red'"
+    // .left: "hasError"
+    // .operator: "&&"
+    // .right: "b-red"
+    case TSESTree.AST_NODE_TYPES.LogicalExpression:
+      classNameExtractionTree.children.push(
+        extractClassNamesDeep(node.right, classNameExtractionTree)
+      );
+      break;
 
-      // "{ background: 'red', apple: 'green' }"
-      // .properties: "background: 'red'", "apple: 'green'"
-      // .properties[0].key: "background"
-      // .properties[0].value: "red"
-      case TSESTree.AST_NODE_TYPES.ObjectExpression:
-        childNode.properties.forEach((property) => {
-          if (property.type === TSESTree.AST_NODE_TYPES.Property) {
-            classNameExtractions.push(
-              ...goDeep(node, extractObjectKey ? property.key : property.value)
-            );
-          }
-        });
-        break;
+    // "['bg-green', 'w-4']"
+    // .elements: "bg-green", "w-4"
+    case TSESTree.AST_NODE_TYPES.ArrayExpression:
+      node.elements.forEach((element) => {
+        if (element != null) {
+          classNameExtractionTree.children.push(
+            extractClassNamesDeep(element, classNameExtractionTree)
+          );
+        }
+      });
+      break;
 
-      default:
-      // do nothing
-    }
+    // "{ background: 'red', apple: 'green' }"
+    // .properties: "background: 'red'", "apple: 'green'"
+    // .properties[0].key: "background"
+    // .properties[0].value: "red"
+    case TSESTree.AST_NODE_TYPES.ObjectExpression:
+      node.properties.forEach((property) => {
+        if (property.type === TSESTree.AST_NODE_TYPES.Property) {
+          classNameExtractionTree.children.push(
+            extractClassNamesDeep(
+              extractObjectKey ? property.key : property.value,
+              classNameExtractionTree
+            )
+          );
+        }
+      });
+      break;
+
+    default:
+    // do nothing
   }
 
-  return classNameExtractions;
+  return classNameExtraction ?? classNameExtractionTree;
 }
 
-function getLiteralValue(node: TSESTree.Literal): TClassNameExtractionObject {
-  const range = extractRangeFromNode(node);
+export function getLiteralValue(node: TSESTree.Literal): TClassNameExtraction {
   return {
-    start: range[0] + 1,
-    end: range[1] - 1,
+    type: 'ClassNameExtraction',
+    start: node.range[0] + 1,
+    end: node.range[1] - 1,
     value: `${node.value}`,
     node,
   };
-}
-
-function handleTemplateLiteral(
-  node: TSESTree.TemplateLiteral
-): TClassNameExtractionObject[] {
-  // TODO go deep
-
-  return [];
 }
 
 /**
@@ -98,19 +122,17 @@ function handleTemplateLiteral(
  */
 export function extractClassNamesFromJSXAttribute(
   node: TSESTree.JSXAttribute
-): TClassNameExtractionObject[] {
-  // Extract Literal from JSXAttribute Node
-  const literal = getLiteralFromJSXAttribute(node);
+): TClassNameExtraction | TClassNameExtractionTree | null {
+  // Extract Literal Node from JSXAttribute Node
+  // Only Literal Nodes as CallExpression Nodes, .. are handled in another listener
+  const literal = getLiteralNodeFromJSXAttribute(node);
 
-  // Extract value and its position from the Literal
-  const classNameExtractions: TClassNameExtractionObject[] = [];
-  if (literal?.type === TSESTree.AST_NODE_TYPES.Literal) {
-    classNameExtractions.push(getLiteralValue(literal));
-  } else if (literal?.type === TSESTree.AST_NODE_TYPES.TemplateLiteral) {
-    classNameExtractions.concat(handleTemplateLiteral(literal));
+  // Extract value and its position from the Literal Node deep
+  if (literal != null) {
+    return extractClassNamesDeep(literal);
   }
 
-  return classNameExtractions;
+  return null;
 }
 
 /**
@@ -119,9 +141,9 @@ export function extractClassNamesFromJSXAttribute(
  * @param node - JSXAttribute Node
  * @returns
  */
-function getLiteralFromJSXAttribute(
+function getLiteralNodeFromJSXAttribute(
   node: TSESTree.JSXAttribute
-): TSESTree.Literal | TSESTree.TemplateLiteral | null {
+): TSESTree.Node | null {
   if (node.value != null) {
     switch (node.value.type) {
       // Case if "<div className='...' />"
@@ -129,32 +151,21 @@ function getLiteralFromJSXAttribute(
         return node.value;
       // Case if "<div className={...} />"
       case TSESTree.AST_NODE_TYPES.JSXExpressionContainer:
-        // Case if "<div className={'...'} />"
-        if (node.value.expression.type === TSESTree.AST_NODE_TYPES.Literal) {
-          return node.value.expression;
-        }
-        // Case if "<div className={`...`} />"
-        else if (
+        if (
+          // Case if "<div className={'...'} />"
+          node.value.expression.type === TSESTree.AST_NODE_TYPES.Literal ||
+          // Case if "<div className={`...`} />"
           node.value.expression.type === TSESTree.AST_NODE_TYPES.TemplateLiteral
         ) {
           return node.value.expression;
         }
         break;
       default:
+      // do nothing
     }
   }
 
   return null;
-}
-
-function extractValueFromNode(node: TSESTree.Literal) {
-  // TODO support other Node types
-  return node.value;
-}
-
-function extractRangeFromNode(node: TSESTree.Literal): TSESTree.Range {
-  // TODO support other Node types
-  return node.range;
 }
 
 /**

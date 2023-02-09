@@ -33,9 +33,16 @@ export type TConfig = {
 };
 export type TOptions = [TConfig];
 
-export type TClassNameExtractionObject = {
+export type TClassNameExtraction = {
+  type: 'ClassNameExtraction';
   start: number;
   end: number;
   value: string;
-  node: TSESTree.BaseNode;
+  node: TSESTree.Node;
+};
+
+export type TClassNameExtractionTree = {
+  type: 'ClassNameExtractionTree';
+  node: TSESTree.Node;
+  children: (TClassNameExtractionTree | TClassNameExtraction)[];
 };
