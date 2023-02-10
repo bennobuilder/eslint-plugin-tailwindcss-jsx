@@ -26,6 +26,7 @@ import { RuleFix } from '@typescript-eslint/utils/dist/ts-eslint';
 import { TSESTree } from '@typescript-eslint/utils';
 import {
   extractClassNamesFromJSXAttribute,
+  flattenClassNameExtractionTree,
   isClassAttribute as isClassNameAttribute,
 } from './ast';
 
@@ -143,12 +144,15 @@ export default createEslintRule<TOptions, TMessageIds>({
         if (!match) return;
 
         // Extract class names from Node
-        const classNameExtraction = extractClassNamesFromJSXAttribute(node);
-        if (classNameExtraction == null) return;
+        const classNameExtractionTree = extractClassNamesFromJSXAttribute(
+          node,
+          context
+        );
+        const classNameExtractions = flattenClassNameExtractionTree(
+          classNameExtractionTree
+        );
 
-        // TODO handle classNameExtractionTree
-
-        if (classNameExtraction?.type === 'ClassNameExtraction') {
+        for (const classNameExtraction of classNameExtractions) {
           const start = classNameExtraction.start;
           const end = classNameExtraction.end;
 
@@ -179,12 +183,14 @@ export default createEslintRule<TOptions, TMessageIds>({
                 fix: (fixer) => {
                   return fixer.replaceTextRange(
                     [start, end],
-                    buildInlineClassName(
-                      sortedClasses,
-                      splitted.whitespaces,
-                      splitted.prefix,
-                      splitted.suffix
-                    )
+                    classNameExtraction.prefix +
+                      buildInlineClassName(
+                        sortedClasses,
+                        splitted.whitespaces,
+                        splitted.prefix,
+                        splitted.suffix
+                      ) +
+                      classNameExtraction.suffix
                   );
                 },
               });

@@ -38,6 +38,8 @@ export type TClassNameExtraction = {
   start: number;
   end: number;
   value: string;
+  prefix: string;
+  suffix: string;
   node: TSESTree.Node;
 };
 

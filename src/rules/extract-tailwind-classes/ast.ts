@@ -1,9 +1,16 @@
 import { TSESTree } from '@typescript-eslint/utils';
-import { TClassNameExtraction, TClassNameExtractionTree } from './types';
+import { RuleContext } from '@typescript-eslint/utils/dist/ts-eslint';
+import {
+  TClassNameExtraction,
+  TClassNameExtractionTree,
+  TMessageIds,
+  TOptions,
+} from './types';
 
 function extractClassNamesDeep(
   node: TSESTree.Node,
-  topLevelNodeTree: TClassNameExtractionTree | null = null
+  topLevelNodeTree: TClassNameExtractionTree | null = null,
+  context?: RuleContext<TMessageIds, TOptions>
 ): TClassNameExtractionTree | TClassNameExtraction {
   const classNameExtractionTree: TClassNameExtractionTree = {
     type: 'ClassNameExtractionTree',
@@ -32,18 +39,18 @@ function extractClassNamesDeep(
     case TSESTree.AST_NODE_TYPES.TemplateLiteral:
       node.expressions.forEach((expression) => {
         classNameExtractionTree.children.push(
-          extractClassNamesDeep(expression, classNameExtractionTree)
+          extractClassNamesDeep(expression, classNameExtractionTree, context)
         );
       });
       node.quasis.forEach((quasis) => {
         classNameExtractionTree.children.push(
-          extractClassNamesDeep(quasis, classNameExtractionTree)
+          extractClassNamesDeep(quasis, classNameExtractionTree, context)
         );
       });
       break;
 
     case TSESTree.AST_NODE_TYPES.TemplateElement:
-      // TODO
+      classNameExtraction = getTemplateElementValue(node, context);
       break;
 
     // "fullWidth ? 'w-4' : 'w-2'"
@@ -52,10 +59,10 @@ function extractClassNamesDeep(
     // .alternate: "w-2"
     case TSESTree.AST_NODE_TYPES.ConditionalExpression:
       classNameExtractionTree.children.push(
-        extractClassNamesDeep(node.consequent, classNameExtractionTree)
+        extractClassNamesDeep(node.consequent, classNameExtractionTree, context)
       );
       classNameExtractionTree.children.push(
-        extractClassNamesDeep(node.alternate, classNameExtractionTree)
+        extractClassNamesDeep(node.alternate, classNameExtractionTree, context)
       );
       break;
 
@@ -65,7 +72,7 @@ function extractClassNamesDeep(
     // .right: "b-red"
     case TSESTree.AST_NODE_TYPES.LogicalExpression:
       classNameExtractionTree.children.push(
-        extractClassNamesDeep(node.right, classNameExtractionTree)
+        extractClassNamesDeep(node.right, classNameExtractionTree, context)
       );
       break;
 
@@ -75,7 +82,7 @@ function extractClassNamesDeep(
       node.elements.forEach((element) => {
         if (element != null) {
           classNameExtractionTree.children.push(
-            extractClassNamesDeep(element, classNameExtractionTree)
+            extractClassNamesDeep(element, classNameExtractionTree, context)
           );
         }
       });
@@ -91,7 +98,8 @@ function extractClassNamesDeep(
           classNameExtractionTree.children.push(
             extractClassNamesDeep(
               extractObjectKey ? property.key : property.value,
-              classNameExtractionTree
+              classNameExtractionTree,
+              context
             )
           );
         }
@@ -105,14 +113,76 @@ function extractClassNamesDeep(
   return classNameExtraction ?? classNameExtractionTree;
 }
 
-export function getLiteralValue(node: TSESTree.Literal): TClassNameExtraction {
+export function flattenClassNameExtractionTree(
+  value: TClassNameExtractionTree | TClassNameExtraction | null
+): TClassNameExtraction[] {
+  if (value == null) return [];
+
+  const classNameExtractions: TClassNameExtraction[] = [];
+
+  if (value.type === 'ClassNameExtractionTree') {
+    for (const child of value.children) {
+      if (child.type === 'ClassNameExtraction') {
+        classNameExtractions.push(child);
+      } else {
+        classNameExtractions.push(...flattenClassNameExtractionTree(child));
+      }
+    }
+  } else {
+    classNameExtractions.push(value);
+  }
+
+  return classNameExtractions;
+}
+
+function getLiteralValue(node: TSESTree.Literal): TClassNameExtraction {
   return {
     type: 'ClassNameExtraction',
     start: node.range[0] + 1,
     end: node.range[1] - 1,
     value: `${node.value}`,
+    prefix: '',
+    suffix: '',
     node,
   };
+}
+
+function getTemplateElementValue(
+  node: TSESTree.TemplateElement,
+  context?: RuleContext<TMessageIds, TOptions>
+): TClassNameExtraction | null {
+  const nodeValue = context?.getSourceCode().getText(node);
+  const raw = node.value.raw;
+  if (nodeValue == null || raw == null) return null;
+
+  // https://github.com/eslint/eslint/issues/13360
+  // The problem is that range computation includes the backticks
+  // but value.raw does not include them, so there is a mismatch.
+  // nodeValue: '`          w-full h-10 rounded          ${'
+  // raw: '\n          w-full h-10 rounded\n          '
+  // -> start/end does not include the backticks, therefore it matches value.raw.
+  const prefix = getTemplateElementPrefix(nodeValue, raw);
+  const suffix = getTemplateElementSuffix(nodeValue, raw);
+
+  return {
+    type: 'ClassNameExtraction',
+    start: node.range[0],
+    end: node.range[1],
+    value: raw,
+    prefix,
+    suffix,
+    node,
+  };
+}
+
+function getTemplateElementPrefix(value: string, raw: string): string {
+  const idx = value.indexOf(raw);
+  return idx === 0 ? '' : value.slice(0, idx);
+}
+
+function getTemplateElementSuffix(value: string, raw: string): string {
+  const idx = value.indexOf(raw);
+  return idx === -1 ? '' : value.slice(idx + raw.length);
 }
 
 /**
@@ -121,7 +191,8 @@ export function getLiteralValue(node: TSESTree.Literal): TClassNameExtraction {
  * @param node - JSXAttribute Node
  */
 export function extractClassNamesFromJSXAttribute(
-  node: TSESTree.JSXAttribute
+  node: TSESTree.JSXAttribute,
+  context?: RuleContext<TMessageIds, TOptions>
 ): TClassNameExtraction | TClassNameExtractionTree | null {
   // Extract Literal Node from JSXAttribute Node
   // Only Literal Nodes as CallExpression Nodes, .. are handled in another listener
@@ -129,7 +200,7 @@ export function extractClassNamesFromJSXAttribute(
 
   // Extract value and its position from the Literal Node deep
   if (literal != null) {
-    return extractClassNamesDeep(literal);
+    return extractClassNamesDeep(literal, null, context);
   }
 
   return null;
