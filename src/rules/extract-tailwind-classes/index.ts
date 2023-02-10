@@ -86,7 +86,7 @@ export default createEslintRule<TOptions, TMessageIds>({
     ], // No options
     messages: {
       invalidInline:
-        'Invalid inline TailwindCSS class names with extracted key.',
+        'Invalid inline TailwindCSS class names with extract identifier present!',
       invalidOrder: 'Invalid TailwindCSS class names order!',
     },
     fixable: 'code',
@@ -97,9 +97,6 @@ export default createEslintRule<TOptions, TMessageIds>({
     if (context.options.length > 0) {
       config = context.options[0];
     }
-
-    // TODO
-    const extractedTailwindClasses: Record<string, string[]> = {};
 
     // Get TailwindCSS context based on TailwindCSS config path specified in config
     const tailwindConfigPath = getTailwindConfigPath(
@@ -141,6 +138,13 @@ export default createEslintRule<TOptions, TMessageIds>({
       // Start at the "JSXAttribute" AST Node Type,
       // as "className" is a JSX attribute
       JSXAttribute: (node) => {
+        if (tailwindContext == null) {
+          console.warn(
+            "No TailwindCSS context present! Thus the sort functionality won't become active."
+          );
+          return;
+        }
+
         // Check whether JSXAttribute Node contains class names
         const { match, name: classNameAttributeName } = isClassNameAttribute(
           node,
@@ -172,13 +176,14 @@ export default createEslintRule<TOptions, TMessageIds>({
             return;
           }
 
-          // Just sort if no identifier present
-          if (identifier == null && tailwindContext != null) {
-            const sortedClasses = sortTailwindClassList(
-              splitted.classes,
-              tailwindContext
-            );
+          // Sort classes
+          const sortedClasses = sortTailwindClassList(
+            splitted.classes,
+            tailwindContext
+          );
 
+          // Just report sorting of TailwindCSS class names if no identifier present
+          if (identifier == null) {
             if (
               !newClassNamesEqualToPreviousClassNames(
                 splitted.classes,
@@ -186,7 +191,7 @@ export default createEslintRule<TOptions, TMessageIds>({
               )
             ) {
               context.report({
-                node,
+                node, // TODO not report entire node just class names
                 messageId: 'invalidOrder',
                 fix: (fixer) => {
                   return fixer.replaceTextRange(
@@ -204,28 +209,17 @@ export default createEslintRule<TOptions, TMessageIds>({
               });
             }
           }
-
-          // TODO fix
-          // Sort and extract if identifier present
-          if (identifier != null) {
-            // Store classes to extract them in another event listener
-            if (tailwindContext != null) {
-              extractedTailwindClasses[identifier] = sortTailwindClassList(
-                splitted.classes,
-                tailwindContext
-              );
-            } else {
-              extractedTailwindClasses[identifier] = splitted.classes;
-            }
-
-            // Report the required extraction
+          // Report required extraction of TailwindCSS class names
+          else {
             context.report({
-              node,
+              node, // TODO not report entire node just 'extract' part
               messageId: 'invalidInline',
               fix: (fixer) => {
                 const fixers: RuleFix[] = [];
 
-                // Fix "Replace class names with identifier"
+                // TODO check whether such identifier already exists
+
+                // Replace inline class names with identifier
                 fixers.push(
                   fixer.replaceText(
                     node,
@@ -233,15 +227,14 @@ export default createEslintRule<TOptions, TMessageIds>({
                   )
                 );
 
-                // Fix "Extract class names to identifier"
+                // Extract class names to identifier
                 const ast = context.getSourceCode().ast;
                 const lastNode = ast.body[ast.body.length - 1];
                 const toInsertCode = `\n\n${buildOutsourcedClassName(
-                  splitted.classes,
+                  sortedClasses,
                   identifier,
                   lastNode.loc.start.column + 1
                 )}`;
-
                 fixers.push(fixer.insertTextAfter(lastNode, toInsertCode));
 
                 return fixers;
@@ -277,48 +270,6 @@ export default createEslintRule<TOptions, TMessageIds>({
 
         // TODO
       },
-      // Adding the TailwindCSS classes to the end of the file in each JSXAttribute Listener fix() method,
-      // didn't work properly if there where multiple fixes to do,
-      // so I collect the to do fixes and then add them at the end of the file in a batch on 'Program:exit'.
-      // https://github.com/eslint/eslint/discussions/16855
-      // 'Program:exit': (node) => {
-      //   if (Object.keys(extractedTailwindClasses).length > 0) {
-      //     context.report({
-      //       node,
-      //       messageId: 'invalidInline',
-      //       fix: (fixer) => {
-      //         const ast = context.getSourceCode().ast;
-
-      //         // Add TailwindCss classes to end of the file (in a batch)
-      //         const lastNode = ast.body[ast.body.length - 1];
-      //         const toInsertCode = Object.keys(extractedTailwindClasses).reduce(
-      //           (previousValue, identifier) => {
-      //             const classes = extractedTailwindClasses[identifier];
-
-      //             // Add new code block with a constant declaration for the extracted Tailwind class
-      //             if (classes != null) {
-      //               previousValue =
-      //                 previousValue +
-      //                 `\n\n${buildOutsourcedClassName(
-      //                   classes,
-      //                   identifier,
-      //                   lastNode.loc.start.column + 1
-      //                 )}`;
-      //             }
-
-      //             // Remove the extracted Tailwind class entry from the stored list
-      //             delete extractedTailwindClasses[identifier];
-
-      //             return previousValue;
-      //           },
-      //           ''
-      //         );
-
-      //         return fixer.insertTextAfter(lastNode, toInsertCode);
-      //       },
-      //     });
-      //   }
-      // },
     };
   },
 });
