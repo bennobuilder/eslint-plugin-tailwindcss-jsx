@@ -19,6 +19,7 @@ import {
   getTailwindContext,
   sortTailwindClassList,
   splitClassName,
+  newClassNamesEqualToPreviousClassNames,
 } from './tailwindcss';
 import { TOptions, TMessageIds, TConfig } from './types';
 import { TTailwindContext } from 'tailwindcss/lib/lib/setupContextUtils';
@@ -97,6 +98,7 @@ export default createEslintRule<TOptions, TMessageIds>({
       config = context.options[0];
     }
 
+    // TODO
     const extractedTailwindClasses: Record<string, string[]> = {};
 
     // Get TailwindCSS context based on TailwindCSS config path specified in config
@@ -132,9 +134,12 @@ export default createEslintRule<TOptions, TMessageIds>({
     // Get callees from config
     const callees: string[] = config?.callees ?? ['clsx', 'ctl', 'classnames'];
 
+    // Get tags from config
+    const tags: string[] = [];
+
     return {
       // Start at the "JSXAttribute" AST Node Type,
-      // as we know that the "className" is a JSX attribute
+      // as "className" is a JSX attribute
       JSXAttribute: (node) => {
         // Check whether JSXAttribute Node contains class names
         const { match, name: classNameAttributeName } = isClassNameAttribute(
@@ -152,6 +157,7 @@ export default createEslintRule<TOptions, TMessageIds>({
           classNameExtractionTree
         );
 
+        // Format class names
         for (const classNameExtraction of classNameExtractions) {
           const start = classNameExtraction.start;
           const end = classNameExtraction.end;
@@ -159,9 +165,6 @@ export default createEslintRule<TOptions, TMessageIds>({
           // Split className into classes & spaces and extract outsource identifier
           const { className, identifier } =
             outsourceExtractIdentifierFromClassName(classNameExtraction.value);
-
-          // TODO handle deep
-          // https://astexplorer.net/#/gist/5228f6df207afd9abdc39f94ad8a3f03/f6d8d3e11fe2470ed123dbedde717727fe5b8f0a
 
           // Split className to classes and whitespaces
           const splitted = splitClassName(className);
@@ -176,7 +179,12 @@ export default createEslintRule<TOptions, TMessageIds>({
               tailwindContext
             );
 
-            if (sortedClasses.join('') !== splitted.classes.join('')) {
+            if (
+              !newClassNamesEqualToPreviousClassNames(
+                splitted.classes,
+                sortedClasses
+              )
+            ) {
               context.report({
                 node,
                 messageId: 'invalidOrder',
@@ -255,6 +263,19 @@ export default createEslintRule<TOptions, TMessageIds>({
 
         // TODO
         // https://astexplorer.net/#/gist/52d251afc60f45058d0d84a5f33cfd7e/373699cd666d160d5a14ecdbb9391ada9be91593
+      },
+      TaggedTemplateExpression: function (node) {
+        const identifier = node.tag;
+
+        // Check whether its a relevant tag
+        if (
+          identifier.type !== TSESTree.AST_NODE_TYPES.Identifier ||
+          tags.findIndex((name) => identifier.name === name) === -1
+        ) {
+          return;
+        }
+
+        // TODO
       },
       // Adding the TailwindCSS classes to the end of the file in each JSXAttribute Listener fix() method,
       // didn't work properly if there where multiple fixes to do,

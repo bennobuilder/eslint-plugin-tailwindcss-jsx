@@ -229,3 +229,10 @@ export function sortTailwindClassList(
     })
     .map(([className]) => className);
 }
+
+export function newClassNamesEqualToPreviousClassNames(
+  previous: string[],
+  now: string[]
+) {
+  return previous.join('') === now.join('');
+}
