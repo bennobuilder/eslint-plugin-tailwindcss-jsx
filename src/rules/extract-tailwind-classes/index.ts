@@ -14,15 +14,12 @@ import { RULE_NAME } from './constants';
 import {
   buildInlineClassName,
   buildOutsourcedClassName,
-  outsourceIdentifierFromClassName as outsourceExtractIdentifierFromClassName,
-  getTailwindConfigPath,
-  getTailwindContext,
+  getIdentifierFromClassName as outsourceExtractIdentifierFromClassName,
   sortTailwindClassList,
   splitClassName,
-  newClassNamesEqualToPreviousClassNames,
+  resolveTailwindContext,
 } from './tailwindcss';
 import { TOptions, TMessageIds, TConfig } from './types';
-import { TTailwindContext } from 'tailwindcss/lib/lib/setupContextUtils';
 import { RuleFix } from '@typescript-eslint/utils/dist/ts-eslint';
 import { TSESTree } from '@typescript-eslint/utils';
 import {
@@ -30,6 +27,7 @@ import {
   flattenClassNameExtractionTree,
   isClassAttribute as isClassNameAttribute,
 } from './ast';
+import { areArraysEquals } from '../../utils/helper';
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -99,20 +97,15 @@ export default createEslintRule<TOptions, TMessageIds>({
     }
 
     // Get TailwindCSS context based on TailwindCSS config path specified in config
-    const tailwindConfigPath = getTailwindConfigPath(
-      config?.tailwindConfigPath,
-      context?.getCwd != null ? context.getCwd() : undefined
+    const tailwindContext = resolveTailwindContext(
+      context,
+      config ?? undefined
     );
-    let tailwindContext: TTailwindContext | null = null;
-    if (tailwindConfigPath != null) {
-      tailwindContext = getTailwindContext(tailwindConfigPath);
-    } else {
-      console.warn("Failed to resolve path to 'tailwind.config.js'!");
-    }
     if (tailwindContext == null) {
       console.warn(
-        `Failed to load 'tailwind.config.js' from '${tailwindConfigPath}'!`
+        "No TailwindCSS context present! Thus the sort functionality won't become active."
       );
+      return {};
     }
 
     // Get class name regex from config
@@ -138,13 +131,6 @@ export default createEslintRule<TOptions, TMessageIds>({
       // Start at the "JSXAttribute" AST Node Type,
       // as "className" is a JSX attribute
       JSXAttribute: (node) => {
-        if (tailwindContext == null) {
-          console.warn(
-            "No TailwindCSS context present! Thus the sort functionality won't become active."
-          );
-          return;
-        }
-
         // Check whether JSXAttribute Node contains class names
         const { match, name: classNameAttributeName } = isClassNameAttribute(
           node,
@@ -162,12 +148,13 @@ export default createEslintRule<TOptions, TMessageIds>({
         );
 
         // Format class names
+        // TODO in case of extraction handle deep extraction based on built tree
         for (const classNameExtraction of classNameExtractions) {
           const start = classNameExtraction.start;
           const end = classNameExtraction.end;
 
           // Split className into classes & spaces and extract outsource identifier
-          const { className, identifier } =
+          const { newClassName: className, identifier } =
             outsourceExtractIdentifierFromClassName(classNameExtraction.value);
 
           // Split className to classes and whitespaces
@@ -175,6 +162,8 @@ export default createEslintRule<TOptions, TMessageIds>({
           if (splitted == null || splitted.classes.length <= 0) {
             return;
           }
+          const prefix = classNameExtraction.prefix + splitted.prefix;
+          const suffix = classNameExtraction.suffix + splitted.suffix;
 
           // Sort classes
           const sortedClasses = sortTailwindClassList(
@@ -184,26 +173,19 @@ export default createEslintRule<TOptions, TMessageIds>({
 
           // Just report sorting of TailwindCSS class names if no identifier present
           if (identifier == null) {
-            if (
-              !newClassNamesEqualToPreviousClassNames(
-                splitted.classes,
-                sortedClasses
-              )
-            ) {
+            if (!areArraysEquals(splitted.classes, sortedClasses)) {
               context.report({
                 node, // TODO not report entire node just class names
                 messageId: 'invalidOrder',
                 fix: (fixer) => {
                   return fixer.replaceTextRange(
                     [start, end],
-                    classNameExtraction.prefix +
-                      buildInlineClassName(
-                        sortedClasses,
-                        splitted.whitespaces,
-                        splitted.prefix,
-                        splitted.suffix
-                      ) +
-                      classNameExtraction.suffix
+                    buildInlineClassName(
+                      sortedClasses,
+                      splitted.whitespaces,
+                      prefix,
+                      suffix
+                    )
                   );
                 },
               });
