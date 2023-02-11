@@ -163,7 +163,7 @@ export default createEslintRule<TOptions, TMessageIds>({
             return;
           }
           const prefix = classNameExtraction.prefix + splitted.prefix;
-          const suffix = classNameExtraction.suffix + splitted.suffix;
+          const suffix = splitted.suffix + classNameExtraction.suffix;
 
           // Sort classes
           const sortedClasses = sortTailwindClassList(
