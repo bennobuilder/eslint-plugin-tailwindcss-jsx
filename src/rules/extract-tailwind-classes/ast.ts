@@ -7,7 +7,7 @@ import {
   TOptions,
 } from './types';
 
-const { extractClassNamesDeep } = (() => {
+export const { extractClassNamesDeep } = (() => {
   /**
    * Constructs ClassNameExtraction based on provided Literal Node.
    *

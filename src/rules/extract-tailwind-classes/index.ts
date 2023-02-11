@@ -23,6 +23,7 @@ import { TOptions, TMessageIds, TConfig } from './types';
 import { RuleFix } from '@typescript-eslint/utils/dist/ts-eslint';
 import { TSESTree } from '@typescript-eslint/utils';
 import {
+  extractClassNamesDeep,
   extractClassNamesFromJSXAttribute,
   flattenClassNameExtractionTree,
   isClassAttribute as isClassNameAttribute,
@@ -202,6 +203,8 @@ export default createEslintRule<TOptions, TMessageIds>({
                 // TODO check whether such identifier already exists
 
                 // Replace inline class names with identifier
+                // Note needs to be inserted hardcoded as its not possible
+                // to figure out where the attribute value starts to ensure inserting the identifier value correctly
                 fixers.push(
                   fixer.replaceText(
                     node,
@@ -225,6 +228,8 @@ export default createEslintRule<TOptions, TMessageIds>({
           }
         }
       },
+
+      // https://astexplorer.net/#/gist/52d251afc60f45058d0d84a5f33cfd7e/373699cd666d160d5a14ecdbb9391ada9be91593
       CallExpression: function (node) {
         const identifier = node.callee;
 
@@ -236,8 +241,58 @@ export default createEslintRule<TOptions, TMessageIds>({
           return;
         }
 
-        // TODO
-        // https://astexplorer.net/#/gist/52d251afc60f45058d0d84a5f33cfd7e/373699cd666d160d5a14ecdbb9391ada9be91593
+        for (const argument of node.arguments) {
+          // TODO outsource all this as its used in multiple code parts
+
+          // Extract class names call argument
+          const classNameExtractionTree = extractClassNamesDeep(
+            argument,
+            null,
+            context
+          );
+          const classNameExtractions = flattenClassNameExtractionTree(
+            classNameExtractionTree
+          );
+
+          for (const classNameExtraction of classNameExtractions) {
+            const className = classNameExtraction.value;
+            const start = classNameExtraction.start;
+            const end = classNameExtraction.end;
+
+            // Split className to classes and whitespaces
+            const splitted = splitClassName(className);
+            if (splitted == null || splitted.classes.length <= 0) {
+              continue;
+            }
+            const prefix = classNameExtraction.prefix + splitted.prefix;
+            const suffix = splitted.suffix + classNameExtraction.suffix;
+
+            // Sort classes
+            const sortedClasses = sortTailwindClassList(
+              splitted.classes,
+              tailwindContext
+            );
+
+            // Sort TailwindCSS class names
+            if (!areArraysEquals(splitted.classes, sortedClasses)) {
+              context.report({
+                node, // TODO not report entire node just class names
+                messageId: 'invalidOrder',
+                fix: (fixer) => {
+                  return fixer.replaceTextRange(
+                    [start, end],
+                    buildInlineClassName(
+                      sortedClasses,
+                      splitted.whitespaces,
+                      prefix,
+                      suffix
+                    )
+                  );
+                },
+              });
+            }
+          }
+        }
       },
       TaggedTemplateExpression: function (node) {
         const identifier = node.tag;

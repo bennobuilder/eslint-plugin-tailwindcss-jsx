@@ -158,6 +158,36 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
       `,
     errors: [{ messageId: 'invalidInline' }, { messageId: 'invalidOrder' }],
   },
+
+  // It should sort class names nested in a function
+  {
+    code: `
+        const buttonClasses = ctl(\`
+          \${fullWidth ? "w-12" : "w-6"}
+          flex
+          container
+          \${fullWidth ? "sm:w-7" : "sm:w-4"}
+          lg:py-4
+          sm:py-6
+          \${hasError && "bg-red"}
+        \`);`,
+    output: `
+        const buttonClasses = ctl(\`
+          \${fullWidth ? "w-12" : "w-6"}
+          container
+          flex
+          \${fullWidth ? "sm:w-7" : "sm:w-4"}
+          sm:py-6
+          lg:py-4
+          \${hasError && "bg-red"}
+        \`);`,
+    errors: [{ messageId: 'invalidOrder' }, { messageId: 'invalidOrder' }],
+  },
+  {
+    code: 'ctl(`p-10 w-full ${some}`)',
+    output: 'ctl(`w-full p-10 ${some}`)',
+    errors: [{ messageId: 'invalidOrder' }],
+  },
 ];
 
 ruleTester.run(RULE_NAME, rule as any, {
@@ -166,36 +196,39 @@ ruleTester.run(RULE_NAME, rule as any, {
   ],
   invalid: [
     ...invalidTestCases,
-
-    // WIP
     // {
     //   code: `
-    //    const buttonClasses = ctl(\`
-    //      \${fullWidth ? "w-12" : "w-6"}
-    //      flex
-    //      container
-    //      \${fullWidth ? "sm:w-7" : "sm:w-4"}
-    //      lg:py-4
-    //      sm:py-6
-    //      \${hasError && "bg-red"}
-    //    \`);`,
+    //      import React from 'react';
+    //      const About: React.FC = () => {
+    //        return (
+    //          <div>
+    //            <p id="text1" className={"sm:py-5 p-4 sm:px-7 lg:p-8 extract-[Text1]"}>About</p>
+    //            <p id="text2" className="lg:box-border box-content">Me</p>
+    //          </div>
+    //        );
+    //      };
+    //      export default About;
+    //   `,
     //   output: `
-    //    const buttonClasses = ctl(\`
-    //      \${fullWidth ? "w-12" : "w-6"}
-    //      container
-    //      flex
-    //      \${fullWidth ? "sm:w-7" : "sm:w-4"}
-    //      sm:py-6
-    //      lg:py-4
-    //      \${hasError && "bg-red"}
-    //    \`);`,
-    //   errors: [{ messageId: 'invalidOrder' }],
+    //      import React from 'react';
+    //      const About: React.FC = () => {
+    //        return (
+    //          <div>
+    //            <p id="text1" className={Text1}>About</p>
+    //            <p id="text2" className="lg:box-border box-content">Me</p>
+    //          </div>
+    //        );
+    //      };
+    //      export default About;
+    //      const Text1 = \`
+    //        p-4
+    //        sm:py-5
+    //        sm:px-7
+    //        lg:p-8
+    //      \`;
+    //   `,
+    //   errors: [{ messageId: 'invalidInline' }, { messageId: 'invalidOrder' }],
     // },
-    // Wrapper function
-    // {
-    //   code: 'ctl(`p-10 w-full ${some}`)',
-    //   output: 'ctl(`w-full p-10 ${some}`)',
-    //   errors: [{ messageId: 'invalidOrder' }],
-    // },
+    // WIP
   ],
 });
