@@ -11,16 +11,8 @@
 
 import { createEslintRule } from '../../utils/create-eslint-rule';
 import { RULE_NAME } from './constants';
-import {
-  buildInlineClassName,
-  buildOutsourcedClassName,
-  getIdentifierFromClassName as outsourceExtractIdentifierFromClassName,
-  sortTailwindClassList,
-  splitClassName,
-  resolveTailwindContext,
-} from './tailwindcss';
+import { resolveTailwindContext } from './tailwindcss';
 import { TOptions, TMessageIds, TConfig } from './types';
-import { RuleFix } from '@typescript-eslint/utils/dist/ts-eslint';
 import { TSESTree } from '@typescript-eslint/utils';
 import {
   extractClassNamesDeep,
@@ -28,7 +20,6 @@ import {
   flattenClassNameExtractionTree,
   isClassAttribute as isClassNameAttribute,
 } from './ast';
-import { areArraysEquals } from '../../utils/helper';
 import { handleExtractedClassNames } from './extractedClassNameHandler';
 
 //------------------------------------------------------------------------------
@@ -80,6 +71,11 @@ export default createEslintRule<TOptions, TMessageIds>({
             items: { type: 'string', minLength: 0 },
             uniqueItems: true,
           },
+          tags: {
+            type: 'array',
+            items: { type: 'string', minLength: 0 },
+            uniqueItems: true,
+          },
         },
         additionalProperties: false,
       },
@@ -127,11 +123,10 @@ export default createEslintRule<TOptions, TMessageIds>({
     const callees: string[] = config?.callees ?? ['clsx', 'ctl', 'classnames'];
 
     // Get tags from config
-    const tags: string[] = [];
+    const tags: string[] = config?.tags ?? ['tss'];
 
     return {
-      // Start at the "JSXAttribute" AST Node Type,
-      // as "className" is a JSX attribute
+      // "className='flex container'"
       JSXAttribute: (node) => {
         // Check whether JSXAttribute Node contains class names
         const { match, name: classNameAttributeName } = isClassNameAttribute(
@@ -160,6 +155,7 @@ export default createEslintRule<TOptions, TMessageIds>({
         });
       },
 
+      // "clsx('flex container')"
       // https://astexplorer.net/#/gist/52d251afc60f45058d0d84a5f33cfd7e/373699cd666d160d5a14ecdbb9391ada9be91593
       CallExpression: function (node) {
         const identifier = node.callee;
@@ -173,7 +169,7 @@ export default createEslintRule<TOptions, TMessageIds>({
         }
 
         for (const argument of node.arguments) {
-          // Extract class names call argument
+          // Extract class names from CallExpression call argument
           const classNameExtractionTree = extractClassNamesDeep(
             argument,
             null,
@@ -193,6 +189,9 @@ export default createEslintRule<TOptions, TMessageIds>({
           });
         }
       },
+
+      // "myTag`flex container`""
+      // https://astexplorer.net/#/gist/378ddb10b13de3653f972efa3af2fc0d/d2388cf4f8d9a55a7b3e905e4b704a8e983d0e31
       TaggedTemplateExpression: function (node) {
         const identifier = node.tag;
 
@@ -204,7 +203,24 @@ export default createEslintRule<TOptions, TMessageIds>({
           return;
         }
 
-        // TODO
+        // Extract class names from TemplateExpression
+        const classNameExtractionTree = extractClassNamesDeep(
+          node.quasi,
+          null,
+          context
+        );
+        const classNameExtractions = flattenClassNameExtractionTree(
+          classNameExtractionTree
+        );
+
+        // Format class names
+        handleExtractedClassNames({
+          node,
+          classNameExtractions,
+          tailwindContext,
+          context,
+          supportExtraction: false,
+        });
       },
     };
   },

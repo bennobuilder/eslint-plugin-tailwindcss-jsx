@@ -3,10 +3,14 @@ import rule, {
   RULE_NAME,
   TOptions,
 } from '../../src/rules/extract-tailwind-classes';
+import { createGenerateErrors } from '../utils';
 
 const dummyText = 'dummyText';
 const testClassName = 'sm:p-0 p-0 container';
 const testClassNameSorted = 'container p-0 sm:p-0';
+
+const generateInvalidOrderErrors = createGenerateErrors('invalidOrder');
+const generateInvalidInlineErrors = createGenerateErrors('invalidInline');
 
 const ruleTester: RuleTester = new RuleTester({
   parser: require.resolve('@typescript-eslint/parser'),
@@ -25,24 +29,24 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
   {
     code: `<div class="${testClassName}">${dummyText}</div>`,
     output: `<div class="${testClassNameSorted}">${dummyText}</div>`,
-    errors: [{ messageId: 'invalidOrder' }],
+    errors: [...generateInvalidOrderErrors(1)],
   },
   {
     code: `<div class={"${testClassName}"}>${dummyText}</div>`,
     output: `<div class={"${testClassNameSorted}"}>${dummyText}</div>`,
-    errors: [{ messageId: 'invalidOrder' }],
+    errors: [...generateInvalidOrderErrors(1)],
   },
 
   // It should sort class names at className
   {
     code: `<div className="${testClassName}">${dummyText}</div>`,
     output: `<div className="${testClassNameSorted}">${dummyText}</div>`,
-    errors: [{ messageId: 'invalidOrder' }],
+    errors: [...generateInvalidOrderErrors(1)],
   },
   {
     code: `<div className={"${testClassName}"}>${dummyText}</div>`,
     output: `<div className={"${testClassNameSorted}"}>${dummyText}</div>`,
-    errors: [{ messageId: 'invalidOrder' }],
+    errors: [...generateInvalidOrderErrors(1)],
   },
 
   // It should sort class names at specified class name identifier
@@ -54,7 +58,7 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
         classNameRegex: /\b(jeff)\b/g,
       },
     ] as TOptions,
-    errors: [{ messageId: 'invalidOrder' }],
+    errors: [...generateInvalidOrderErrors(1)],
   },
 
   // It should sort class names in TemplateLiteral
@@ -89,7 +93,7 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
         ${dummyText}
       </div>
       `,
-    errors: [{ messageId: 'invalidOrder' }],
+    errors: [...generateInvalidOrderErrors(1)],
   },
 
   // It should sort conditional & nested class names in TemplateLiteral
@@ -120,7 +124,7 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
         \`}
       />
       `,
-    errors: [{ messageId: 'invalidOrder' }, { messageId: 'invalidOrder' }],
+    errors: [...generateInvalidOrderErrors(2)],
   },
 
   // It should outsource class names if extract identifier present
@@ -129,9 +133,8 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
          import React from 'react';
          const About: React.FC = () => {
            return (
-             <div>
-               <p id="text1" className="sm:py-5 p-4 sm:px-7 lg:p-8 extract-[Text1]">About</p>
-               <p id="text2" className="lg:box-border box-content">Me</p>
+             <div className="${testClassName}">
+               <p id="text1" className="text-xl p-4 lg:p-8 font-bold extract-[Text1]">About</p>
              </div>
            );
          };
@@ -141,9 +144,8 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
          import React from 'react';
          const About: React.FC = () => {
            return (
-             <div>
+             <div className="${testClassNameSorted}">
                <p id="text1" className={Text1}>About</p>
-               <p id="text2" className="lg:box-border box-content">Me</p>
              </div>
            );
          };
@@ -151,42 +153,73 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
 
          const Text1 = \`
            p-4
-           sm:py-5
-           sm:px-7
+           text-xl
+           font-bold
            lg:p-8
          \`;
       `,
-    errors: [{ messageId: 'invalidInline' }, { messageId: 'invalidOrder' }],
+    errors: [
+      ...generateInvalidOrderErrors(1),
+      ...generateInvalidInlineErrors(1),
+    ],
   },
 
   // It should sort class names nested in a function
   {
     code: `
         const buttonClasses = ctl(\`
-          \${fullWidth ? "w-12" : "w-6"}
+          \${fullWidth ? "${testClassName}" : "${testClassName}"}
           flex
           container
-          \${fullWidth ? "sm:w-7" : "sm:w-4"}
+          \${fullWidth ? "${testClassName}" : "${testClassName}"}
           lg:py-4
           sm:py-6
-          \${hasError && "bg-red"}
+          \${hasError && "${testClassName}"}
         \`);`,
     output: `
         const buttonClasses = ctl(\`
-          \${fullWidth ? "w-12" : "w-6"}
+          \${fullWidth ? "${testClassNameSorted}" : "${testClassNameSorted}"}
           container
           flex
-          \${fullWidth ? "sm:w-7" : "sm:w-4"}
+          \${fullWidth ? "${testClassNameSorted}" : "${testClassNameSorted}"}
           sm:py-6
           lg:py-4
-          \${hasError && "bg-red"}
+          \${hasError && "${testClassNameSorted}"}
         \`);`,
-    errors: [{ messageId: 'invalidOrder' }, { messageId: 'invalidOrder' }],
+    errors: [...generateInvalidOrderErrors(7)],
   },
   {
-    code: 'ctl(`p-10 w-full ${some}`)',
-    output: 'ctl(`w-full p-10 ${some}`)',
-    errors: [{ messageId: 'invalidOrder' }],
+    code: `ctl(\`${testClassName} \${"some other stuff"}\`)`,
+    output: `ctl(\`${testClassNameSorted} \${"some other stuff"}\`)`,
+    errors: [...generateInvalidOrderErrors(1)],
+  },
+  {
+    code: `
+      const buttonClasses = jeff\`
+          \${fullWidth ? "${testClassName}" : "${testClassName}"}
+          flex
+          container
+          \${fullWidth ? "${testClassName}" : "${testClassName}"}
+          lg:py-4
+          sm:py-6
+          \${hasError && "${testClassName}"}
+      \`;`,
+    output: `
+      const buttonClasses = jeff\`
+          \${fullWidth ? "${testClassNameSorted}" : "${testClassNameSorted}"}
+          container
+          flex
+          \${fullWidth ? "${testClassNameSorted}" : "${testClassNameSorted}"}
+          sm:py-6
+          lg:py-4
+          \${hasError && "${testClassNameSorted}"}
+      \`;`,
+    options: [
+      {
+        tags: ['jeff'],
+      },
+    ],
+    errors: [...generateInvalidOrderErrors(7)],
   },
 ];
 
@@ -194,41 +227,5 @@ ruleTester.run(RULE_NAME, rule as any, {
   valid: [
     // TODO
   ],
-  invalid: [
-    ...invalidTestCases,
-    // {
-    //   code: `
-    //      import React from 'react';
-    //      const About: React.FC = () => {
-    //        return (
-    //          <div>
-    //            <p id="text1" className={"sm:py-5 p-4 sm:px-7 lg:p-8 extract-[Text1]"}>About</p>
-    //            <p id="text2" className="lg:box-border box-content">Me</p>
-    //          </div>
-    //        );
-    //      };
-    //      export default About;
-    //   `,
-    //   output: `
-    //      import React from 'react';
-    //      const About: React.FC = () => {
-    //        return (
-    //          <div>
-    //            <p id="text1" className={Text1}>About</p>
-    //            <p id="text2" className="lg:box-border box-content">Me</p>
-    //          </div>
-    //        );
-    //      };
-    //      export default About;
-    //      const Text1 = \`
-    //        p-4
-    //        sm:py-5
-    //        sm:px-7
-    //        lg:p-8
-    //      \`;
-    //   `,
-    //   errors: [{ messageId: 'invalidInline' }, { messageId: 'invalidOrder' }],
-    // },
-    // WIP
-  ],
+  invalid: [...invalidTestCases],
 });
