@@ -29,6 +29,7 @@ import {
   isClassAttribute as isClassNameAttribute,
 } from './ast';
 import { areArraysEquals } from '../../utils/helper';
+import { handleExtractedClassNames } from './extractedClassNameHandler';
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -149,84 +150,14 @@ export default createEslintRule<TOptions, TMessageIds>({
         );
 
         // Format class names
-        // TODO in case of extraction handle deep extraction based on built tree
-        for (const classNameExtraction of classNameExtractions) {
-          const start = classNameExtraction.start;
-          const end = classNameExtraction.end;
-
-          // Split className into classes & spaces and extract outsource identifier
-          const { newClassName: className, identifier } =
-            outsourceExtractIdentifierFromClassName(classNameExtraction.value);
-
-          // Split className to classes and whitespaces
-          const splitted = splitClassName(className);
-          if (splitted == null || splitted.classes.length <= 0) {
-            return;
-          }
-          const prefix = classNameExtraction.prefix + splitted.prefix;
-          const suffix = splitted.suffix + classNameExtraction.suffix;
-
-          // Sort classes
-          const sortedClasses = sortTailwindClassList(
-            splitted.classes,
-            tailwindContext
-          );
-
-          // Just report sorting of TailwindCSS class names if no identifier present
-          if (identifier == null) {
-            if (!areArraysEquals(splitted.classes, sortedClasses)) {
-              context.report({
-                node, // TODO not report entire node just class names
-                messageId: 'invalidOrder',
-                fix: (fixer) => {
-                  return fixer.replaceTextRange(
-                    [start, end],
-                    buildInlineClassName(
-                      sortedClasses,
-                      splitted.whitespaces,
-                      prefix,
-                      suffix
-                    )
-                  );
-                },
-              });
-            }
-          }
-          // Report required extraction of TailwindCSS class names
-          else {
-            context.report({
-              node, // TODO not report entire node just 'extract' part
-              messageId: 'invalidInline',
-              fix: (fixer) => {
-                const fixers: RuleFix[] = [];
-
-                // TODO check whether such identifier already exists
-
-                // Replace inline class names with identifier
-                // Note needs to be inserted hardcoded as its not possible
-                // to figure out where the attribute value starts to ensure inserting the identifier value correctly
-                fixers.push(
-                  fixer.replaceText(
-                    node,
-                    `${classNameAttributeName}={${identifier}}`
-                  )
-                );
-
-                // Extract class names to identifier
-                const ast = context.getSourceCode().ast;
-                const lastNode = ast.body[ast.body.length - 1];
-                const toInsertCode = `\n\n${buildOutsourcedClassName(
-                  sortedClasses,
-                  identifier,
-                  lastNode.loc.start.column + 1
-                )}`;
-                fixers.push(fixer.insertTextAfter(lastNode, toInsertCode));
-
-                return fixers;
-              },
-            });
-          }
-        }
+        handleExtractedClassNames({
+          node,
+          classNameExtractions,
+          tailwindContext,
+          context,
+          classNameAttributeName,
+          supportExtraction: true,
+        });
       },
 
       // https://astexplorer.net/#/gist/52d251afc60f45058d0d84a5f33cfd7e/373699cd666d160d5a14ecdbb9391ada9be91593
@@ -242,8 +173,6 @@ export default createEslintRule<TOptions, TMessageIds>({
         }
 
         for (const argument of node.arguments) {
-          // TODO outsource all this as its used in multiple code parts
-
           // Extract class names call argument
           const classNameExtractionTree = extractClassNamesDeep(
             argument,
@@ -254,44 +183,14 @@ export default createEslintRule<TOptions, TMessageIds>({
             classNameExtractionTree
           );
 
-          for (const classNameExtraction of classNameExtractions) {
-            const className = classNameExtraction.value;
-            const start = classNameExtraction.start;
-            const end = classNameExtraction.end;
-
-            // Split className to classes and whitespaces
-            const splitted = splitClassName(className);
-            if (splitted == null || splitted.classes.length <= 0) {
-              continue;
-            }
-            const prefix = classNameExtraction.prefix + splitted.prefix;
-            const suffix = splitted.suffix + classNameExtraction.suffix;
-
-            // Sort classes
-            const sortedClasses = sortTailwindClassList(
-              splitted.classes,
-              tailwindContext
-            );
-
-            // Sort TailwindCSS class names
-            if (!areArraysEquals(splitted.classes, sortedClasses)) {
-              context.report({
-                node, // TODO not report entire node just class names
-                messageId: 'invalidOrder',
-                fix: (fixer) => {
-                  return fixer.replaceTextRange(
-                    [start, end],
-                    buildInlineClassName(
-                      sortedClasses,
-                      splitted.whitespaces,
-                      prefix,
-                      suffix
-                    )
-                  );
-                },
-              });
-            }
-          }
+          // Format class names
+          handleExtractedClassNames({
+            node,
+            classNameExtractions,
+            tailwindContext,
+            context,
+            supportExtraction: false,
+          });
         }
       },
       TaggedTemplateExpression: function (node) {
