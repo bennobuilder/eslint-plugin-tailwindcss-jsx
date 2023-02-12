@@ -14,7 +14,7 @@ ruleTester.run(RULE_NAME, rule as any, {
   invalid: [
     {
       code: 'try { foo() } catch (e) {}',
-      // we can use messageId from the rule object
+      // We can use messageId from the rule object
       errors: [{ messageId: 'emptyCatch' }],
     },
   ],

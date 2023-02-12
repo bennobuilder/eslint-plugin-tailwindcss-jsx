@@ -11,19 +11,16 @@
 
 import { createEslintRule } from '../../utils/create-eslint-rule';
 import { RULE_NAME } from './constants';
-import {
-  buildInlineClassName,
-  buildOutsourcedClassName,
-  getOutsourceIdentifierFromClassName,
-  getTailwindConfigPath,
-  getTailwindContext,
-  sortTailwindClassList,
-  splitClassName,
-} from './tailwindcss';
-import { TOptions, TMessageIds } from './types';
-import { TTailwindContext } from 'tailwindcss/lib/lib/setupContextUtils';
-import { RuleFix } from '@typescript-eslint/utils/dist/ts-eslint';
+import { resolveTailwindContext } from './tailwindcss';
+import { TOptions, TMessageIds, TConfig } from './types';
 import { TSESTree } from '@typescript-eslint/utils';
+import {
+  extractClassNamesDeep,
+  extractClassNamesFromJSXAttribute,
+  flattenClassNameExtractionTree,
+  isClassAttribute as isClassNameAttribute,
+} from './ast';
+import { handleExtractedClassNames } from './extractedClassNameHandler';
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -41,9 +38,43 @@ export default createEslintRule<TOptions, TMessageIds>({
     schema: [
       {
         type: 'object',
+        // required: [],
         properties: {
-          tailwindConfig: {
+          tailwindConfigPath: {
             type: 'string',
+          },
+          classNameRegex: {
+            type: 'object',
+            oneOf: [
+              {
+                type: 'object',
+                required: ['regex'],
+                properties: {
+                  regex: {
+                    type: 'array',
+                    items: {
+                      instanceof: 'RegExp',
+                    },
+                  },
+                  overwrite: {
+                    type: 'boolean',
+                  },
+                },
+              },
+              {
+                instanceof: 'RegExp',
+              },
+            ],
+          },
+          callees: {
+            type: 'array',
+            items: { type: 'string', minLength: 0 },
+            uniqueItems: true,
+          },
+          tags: {
+            type: 'array',
+            items: { type: 'string', minLength: 0 },
+            uniqueItems: true,
           },
         },
         additionalProperties: false,
@@ -51,168 +82,146 @@ export default createEslintRule<TOptions, TMessageIds>({
     ], // No options
     messages: {
       invalidInline:
-        'Invalid inline TailwindCSS class names with extracted key.',
+        'Invalid inline TailwindCSS class names with extract identifier present!',
       invalidOrder: 'Invalid TailwindCSS class names order!',
     },
     fixable: 'code',
   },
   defaultOptions: [{}],
   create: (context) => {
-    const extractedTailwindClasses: Record<string, string[]> = {};
-
-    // Get Tailwind Context
-    const tailwindConfigPath = getTailwindConfigPath(context.options);
-    let tailwindContext: TTailwindContext | null = null;
-    if (tailwindConfigPath != null) {
-      tailwindContext = getTailwindContext(tailwindConfigPath);
-    } else {
-      console.warn("Failed to resolve path to 'tailwind.config.js'!");
+    let config: TConfig | null = null;
+    if (context.options.length > 0) {
+      config = context.options[0];
     }
+
+    // Get TailwindCSS context based on TailwindCSS config path specified in config
+    const tailwindContext = resolveTailwindContext(
+      context,
+      config ?? undefined
+    );
     if (tailwindContext == null) {
       console.warn(
-        `Failed to load 'tailwind.config.js' from '${tailwindConfigPath}'!`
+        "No TailwindCSS context present! Thus the sort functionality won't become active."
       );
+      return {};
     }
 
+    // Get class name regex from config
+    let classNameRegex: RegExp[] = [/\b(class|className)\b/g];
+    if (config != null && config.classNameRegex != null) {
+      const configClassRegex = config.classNameRegex;
+      if (configClassRegex instanceof RegExp) {
+        classNameRegex = [configClassRegex];
+      } else {
+        classNameRegex = configClassRegex.overwrite
+          ? configClassRegex.regex
+          : classNameRegex.concat(configClassRegex.regex);
+      }
+    }
+
+    // Get callees from config
+    const callees: string[] = config?.callees ?? ['clsx', 'ctl', 'classnames'];
+
+    // Get tags from config
+    const tags: string[] = config?.tags ?? ['tss'];
+
     return {
-      // Start at the "JSXAttribute" AST Node Type,
-      // as we know that the "className" is a JSX attribute
+      // "className='flex container'"
       JSXAttribute: (node) => {
-        // Check wether its a relevant JSXAttribute
+        // Check whether JSXAttribute Node contains class names
+        const { match, name: classNameAttributeName } = isClassNameAttribute(
+          node,
+          classNameRegex
+        );
+        if (!match) return;
+
+        // Extract class names from Node
+        const classNameExtractionTree = extractClassNamesFromJSXAttribute(
+          node,
+          context
+        );
+        const classNameExtractions = flattenClassNameExtractionTree(
+          classNameExtractionTree
+        );
+
+        // Format class names
+        handleExtractedClassNames({
+          node,
+          classNameExtractions,
+          tailwindContext,
+          context,
+          classNameAttributeName,
+          supportExtraction: true,
+        });
+      },
+
+      // "clsx('flex container')"
+      // https://astexplorer.net/#/gist/52d251afc60f45058d0d84a5f33cfd7e/373699cd666d160d5a14ecdbb9391ada9be91593
+      CallExpression: function (node) {
+        const identifier = node.callee;
+
+        // Check whether its a relevant callee
         if (
-          node.name.type !== 'JSXIdentifier' ||
-          node.value == null ||
-          node.value.type !== 'Literal'
+          identifier.type !== TSESTree.AST_NODE_TYPES.Identifier ||
+          callees.findIndex((name) => identifier.name === name) === -1
         ) {
           return;
         }
 
-        const jsxIdentifier = node.name;
-        const jsxLiteral = node.value;
-
-        // Check whether attribute is actually a "className"
-        if (jsxIdentifier.name !== 'className') {
-          return;
-        }
-
-        // Check whether its a relevant literal
-        if (jsxLiteral.value == null || typeof jsxLiteral.value !== 'string') {
-          return;
-        }
-
-        // Split className into classes & spaces and extract outsource identifier
-        const { className, identifier } = getOutsourceIdentifierFromClassName(
-          jsxLiteral.value
-        );
-        const splitted = splitClassName(className);
-        if (splitted == null || splitted.classes.length <= 0) {
-          return;
-        }
-
-        // Just sort if no identifier present
-        if (identifier == null && tailwindContext != null) {
-          const sortedClasses = sortTailwindClassList(
-            splitted.classes,
-            tailwindContext
+        for (const argument of node.arguments) {
+          // Extract class names from CallExpression call argument
+          const classNameExtractionTree = extractClassNamesDeep(
+            argument,
+            null,
+            context
+          );
+          const classNameExtractions = flattenClassNameExtractionTree(
+            classNameExtractionTree
           );
 
-          if (sortedClasses.join('') !== splitted.classes.join('')) {
-            context.report({
-              node,
-              messageId: 'invalidOrder',
-              fix: (fixer) => {
-                return fixer.replaceTextRange(
-                  jsxLiteral.range,
-                  `"${buildInlineClassName(
-                    sortedClasses,
-                    splitted.whitespaces
-                  )}"`
-                );
-              },
-            });
-          }
-        }
-
-        // Sort and extract if identifier present
-        if (identifier != null) {
-          // Store classes to extract them in another event listener
-          if (tailwindContext != null) {
-            extractedTailwindClasses[identifier] = sortTailwindClassList(
-              splitted.classes,
-              tailwindContext
-            );
-          } else {
-            extractedTailwindClasses[identifier] = splitted.classes;
-          }
-
-          // Report the required extraction
-          context.report({
+          // Format class names
+          handleExtractedClassNames({
             node,
-            messageId: 'invalidInline',
-            fix: (fixer) => {
-              const fixers: RuleFix[] = [];
-
-              // Fix "Replace class names with identifier"
-              fixers.push(fixer.replaceText(node, `className={${identifier}}`));
-
-              // Fix "Extract class names to identifier"
-              const ast = context.getSourceCode().ast;
-              const lastNode = ast.body[ast.body.length - 1];
-              const toInsertCode = `\n\n${buildOutsourcedClassName(
-                splitted.classes,
-                identifier,
-                lastNode.loc.start.column + 1
-              )}`;
-
-              fixers.push(fixer.insertTextAfter(lastNode, toInsertCode));
-
-              return fixers;
-            },
+            classNameExtractions,
+            tailwindContext,
+            context,
+            supportExtraction: false,
           });
         }
       },
-      // Adding the TailwindCSS classes to the end of the file in each JSXAttribute Listener fix() method,
-      // didn't work properly if there where multiple fixes to do,
-      // so I collect the to do fixes and then add them at the end of the file in a batch on 'Program:exit'.
-      // https://github.com/eslint/eslint/discussions/16855
-      // 'Program:exit': (node) => {
-      //   if (Object.keys(extractedTailwindClasses).length > 0) {
-      //     context.report({
-      //       node,
-      //       messageId: 'invalidInline',
-      //       fix: (fixer) => {
-      //         const ast = context.getSourceCode().ast;
 
-      //         // Add TailwindCss classes to end of the file (in a batch)
-      //         const lastNode = ast.body[ast.body.length - 1];
-      //         const toInsertCode = Object.keys(extractedTailwindClasses).reduce(
-      //           (previousValue, identifier) => {
-      //             const classes = extractedTailwindClasses[identifier];
+      // "myTag`flex container`""
+      // https://astexplorer.net/#/gist/378ddb10b13de3653f972efa3af2fc0d/d2388cf4f8d9a55a7b3e905e4b704a8e983d0e31
+      TaggedTemplateExpression: function (node) {
+        const identifier = node.tag;
 
-      //             // Add new code block with a constant declaration for the extracted Tailwind class
-      //             if (classes != null) {
-      //               previousValue =
-      //                 previousValue +
-      //                 `\n\n${buildOutsourcedClassName(
-      //                   classes,
-      //                   identifier,
-      //                   lastNode.loc.start.column + 1
-      //                 )}`;
-      //             }
+        // Check whether its a relevant tag
+        if (
+          identifier.type !== TSESTree.AST_NODE_TYPES.Identifier ||
+          tags.findIndex((name) => identifier.name === name) === -1
+        ) {
+          return;
+        }
 
-      //             // Remove the extracted Tailwind class entry from the stored list
-      //             delete extractedTailwindClasses[identifier];
+        // Extract class names from TemplateExpression
+        const classNameExtractionTree = extractClassNamesDeep(
+          node.quasi,
+          null,
+          context
+        );
+        const classNameExtractions = flattenClassNameExtractionTree(
+          classNameExtractionTree
+        );
 
-      //             return previousValue;
-      //           },
-      //           ''
-      //         );
-
-      //         return fixer.insertTextAfter(lastNode, toInsertCode);
-      //       },
-      //     });
-      //   }
-      // },
+        // Format class names
+        handleExtractedClassNames({
+          node,
+          classNameExtractions,
+          tailwindContext,
+          context,
+          supportExtraction: false,
+        });
+      },
     };
   },
 });
