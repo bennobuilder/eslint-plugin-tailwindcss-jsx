@@ -1,5 +1,3 @@
-import { TSESTree } from '@typescript-eslint/utils';
-
 export type TMessageIds = 'invalidInline' | 'invalidOrder';
 export type TConfig = {
   /**
@@ -44,18 +42,10 @@ export type TOptions = [TConfig];
 
 export type TClassNameExtraction = {
   type: 'Node';
-  start: number;
-  end: number;
-  value: string;
-  prefix: string;
-  suffix: string;
-  node: TSESTree.Node;
 };
 
 export type TClassNameExtractionTree = {
   type: 'NodeTree';
-  node: TSESTree.Node;
-  children: (TClassNameExtractionTree | TClassNameExtraction)[];
 };
 
 export type TGetIdentifierFromClassNameResponse = {

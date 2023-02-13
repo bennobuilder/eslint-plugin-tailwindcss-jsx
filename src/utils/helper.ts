@@ -7,6 +7,10 @@ export function isBlank(value: string): boolean {
   return !value || /^\s*$/.test(value);
 }
 
+export function hasAlphabeticChar(value: string): boolean {
+  return !value || /.*[a-zA-Z]+.*/.test(value);
+}
+
 /**
  * Checks whether two arrays are equal.
  *

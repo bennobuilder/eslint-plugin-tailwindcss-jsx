@@ -227,5 +227,9 @@ ruleTester.run(RULE_NAME, rule as any, {
   valid: [
     // TODO
   ],
-  invalid: [...invalidTestCases],
+  invalid: [
+    ...invalidTestCases,
+
+    // WIP
+  ],
 });

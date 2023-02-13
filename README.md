@@ -10,7 +10,9 @@ npm install -D eslint eslint-plugin-tailwindcss-jsx
 ```
 It is also possible to install ESLint globally rather than locally (using `npm install -g eslint`). However, this is not recommended, and any plugins or shareable configs that you use must be installed locally in either case.
 
-## ⚙️ Configuration (`.eslintrc.[js/json]`)
+## ⚙️ Configuration 
+
+### `.eslintrc.[js/json]`
 Use our preset to get reasonable defaults:
 ```json
 // ..
@@ -19,6 +21,11 @@ Use our preset to get reasonable defaults:
     "plugin:tailwindcss-jsx/recommended"
   ]
 // ..
+```
+
+You should also specify settings that will be shared across all the plugin rules. ([More about eslint shared settings](https://eslint.org/docs/latest/use/configure/configuration-files#adding-shared-settings))
+```json
+todo
 ```
 
 If you do not use a preset you will need to specify individual rules and add extra configuration.
@@ -39,6 +46,9 @@ Enable the rules that you would like to use:
   ]
 // ..
 ```
+
+### `eslint.config.js`
+> TODO
 
 ## 🙏 Contribution
 ### 📒 Resources
