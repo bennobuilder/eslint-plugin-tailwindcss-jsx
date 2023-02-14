@@ -123,7 +123,7 @@ export default createEslintRule<TOptions, TMessageIds>({
         // Check whether JSXAttribute Node contains class names
         const { match } = astHelper.isClassNameJSXAttribute(
           node,
-          new RegExp(config.classNameRegex, 'g')
+          new RegExp(config.attributeRegex, 'g')
         );
         if (!match) return;
 

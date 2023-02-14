@@ -25,10 +25,16 @@ Use our preset to get reasonable defaults:
 
 You should also specify settings that will be shared across all the plugin rules. ([More about eslint shared settings](https://eslint.org/docs/latest/use/configure/configuration-files#adding-shared-settings))
 ```json
-todo
+{
+  "settings": {
+    "tailwindConfigPath": "tailwind.config.js", // Relative path to the TailwindCSS config file from the root directory
+    "attributeRegex": /\b(class|className)\b/g.source, // Regex to match Attribute Nodes that contain TailwindCSS class names
+    "calleesRegex": /\b(clsx|cls|classnames)\b/g.source, // Regex to match Call Expression Nodes that contain TailwindCSS class names
+    "tagsRegex": /\b(tss)\b/g.source, // Regex to match Tag Expression Nodes that contain TailwindCSS class names
+  }
+}
 ```
-
-If you do not use a preset you will need to specify individual rules and add extra configuration.
+If you do **not** use a preset you will need to specify individual rules and add extra configuration.
 
 Add `tailwindcss-jsx` to the plugins section:
 ```json
@@ -38,17 +44,44 @@ Add `tailwindcss-jsx` to the plugins section:
   ]
 // ..
 ```
+Enable JSX support
+```json
+// ..
+"parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true
+  }
+}
+// ..
+```
 Enable the rules that you would like to use:
 ```json
 // ..
   "plugins": [
-    "tailwindcss-jsx/extract-tailwind-classes": "error",
+    "tailwindcss-jsx/sort-classes": "error",
   ]
 // ..
 ```
 
+#### Sharable configs
+
+**Recommended**
+
+This plugin exports a `recommended` configuration that enforces TailwindCSS best practices. To enable this configuration use the `extends` property in your `.eslintrc` config file:
+```json
+// ..
+"extends": ["eslint:recommended", "plugin:tailwindcss-jsx/recommended"]
+// ..
+```
+See [`eslint` documentation](https://eslint.org/docs/user-guide/configuring/configuration-files#extending-configuration-files) for more information about extending configuration files.
+
+**Note:** These configurations will enable JSX in [parser options](https://eslint.org/docs/latest/use/configure/language-options#specifying-parser-options).
+
 ### `eslint.config.js`
 > TODO
+
+## 📜 List of supported rules
+todo
 
 ## 🙏 Contribution
 ### 📒 Resources
@@ -68,5 +101,6 @@ Enable the rules that you would like to use:
    ```
 
 ## 🌟 Credits
-- [`eslint-plugin-tailwindcss`](https://github.com/francoismassart/eslint-plugin-tailwindcss)
 - [`prettier-plugin-tailwindcss`](https://github.com/tailwindlabs/prettier-plugin-tailwindcss)
+- [eslint-plugin-react](https://www.npmjs.com/package/eslint-plugin-react)
+- [`eslint-plugin-tailwindcss`](https://github.com/francoismassart/eslint-plugin-tailwindcss)
