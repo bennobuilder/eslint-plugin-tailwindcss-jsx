@@ -24,3 +24,13 @@ export function areArraysEquals(arr1: any[], arr2: any[]): boolean {
   }
   return true;
 }
+
+export function matchesRegex(name: string, regex: RegExp[] | RegExp): boolean {
+  const regexArray = Array.isArray(regex) ? regex : [regex];
+  let match = false;
+  for (const regex of regexArray) {
+    match = new RegExp(regex).test(name);
+    if (match) break;
+  }
+  return match;
+}

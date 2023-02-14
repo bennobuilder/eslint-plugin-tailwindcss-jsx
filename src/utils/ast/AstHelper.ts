@@ -1,5 +1,6 @@
 import { TSESTree } from '@typescript-eslint/utils';
 import { RuleContext } from '@typescript-eslint/utils/dist/ts-eslint';
+import { matchesRegex } from '../helper';
 import { ExtractedClassNamesNode } from './ExtractedClassNamesNode';
 import { ExtractedClassNamesTree } from './ExtractedClassNamesTree';
 
@@ -11,33 +12,63 @@ export class AstHelper<TMessageIds extends string, TOptions extends any[]> {
   }
 
   /**
-   * Checks wether the JSXAttribute Node might contain TailwindCSS class names.
+   * Checks whether the JSXAttribute Node might contain TailwindCSS class names.
    *
    * @param node - JSXAttribute Node
-   * @param classNameRegex - Regex the Node has to match
+   * @param regex - Regex the Node identifier has to match.
    */
-  public isClassNameAttribute(
+  public isClassNameJSXAttribute(
     node: TSESTree.JSXAttribute,
-    classNameRegex: RegExp[] | RegExp
+    regex: RegExp[] | RegExp
   ): { match: boolean; name: string } {
-    const regexArray = Array.isArray(classNameRegex)
-      ? classNameRegex
-      : [classNameRegex];
-
-    // Extract attribute name
-    let attributeName = '';
+    let name = '';
     if (node.name.type === TSESTree.AST_NODE_TYPES.JSXIdentifier) {
-      attributeName = node.name.name;
+      name = node.name.name;
     }
+    return {
+      match: matchesRegex(name, regex),
+      name,
+    };
+  }
 
-    // Check whether match
-    let match = false;
-    for (const regex of regexArray) {
-      match = new RegExp(regex).test(attributeName);
-      if (match) break;
+  /**
+   * Checks whether the CallExpression Node might contain TailwindCSS class names.
+   *
+   * @param node - CallExpression Node
+   * @param regex - Regex the Node identifier has to match.
+   */
+  public isClassNameCallExpression(
+    node: TSESTree.CallExpression,
+    regex: RegExp[] | RegExp
+  ): { match: boolean; name: string } {
+    let name = '';
+    if (node.callee.type === TSESTree.AST_NODE_TYPES.Identifier) {
+      name = node.callee.name;
     }
+    return {
+      match: matchesRegex(name, regex),
+      name,
+    };
+  }
 
-    return { match, name: attributeName };
+  /**
+   * Checks whether the TaggedTemplateExpression Node might contain TailwindCSS class names.
+   *
+   * @param node - TaggedTemplateExpression Node
+   * @param regex - Regex the Node identifier has to match.
+   */
+  public isClassNameTaggedTemplateExpression(
+    node: TSESTree.TaggedTemplateExpression,
+    regex: RegExp[] | RegExp
+  ): { match: boolean; name: string } {
+    let name = '';
+    if (node.tag.type === TSESTree.AST_NODE_TYPES.Identifier) {
+      name = node.tag.name;
+    }
+    return {
+      match: matchesRegex(name, regex),
+      name,
+    };
   }
 
   /**
@@ -170,8 +201,9 @@ export class AstHelper<TMessageIds extends string, TOptions extends any[]> {
     // Extract Literal Node from JSXAttribute Node
     const literal = this.getLiteralNodeFromJSXAttribute(node);
 
-    // Extract value and its position from the Literal Node deep
-    // but only if its an Literal Node as non literals like CallExpressions are handled elsewhere
+    // Extract value and its position from the Literal Node in deep manner
+    // but only if its an Literal Node as non Literals like CallExpressions
+    // are handled elsewhere
     return literal != null ? this.extractClassNamesDeep(literal) : null;
   }
 

@@ -6,7 +6,7 @@
  * and Docs: https://eslint.org/docs/latest/extend/custom-rules
  */
 
-import { createEslintRule } from '../utils/create-eslint-rule';
+import { createEslintRule } from '../utils/eslint/create-eslint-rule';
 
 //------------------------------------------------------------------------------
 // Constants

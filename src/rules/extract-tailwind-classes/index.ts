@@ -9,9 +9,9 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-import { createEslintRule } from '../../utils/create-eslint-rule';
+import { createEslintRule } from '../../utils/eslint/create-eslint-rule';
 import { RULE_NAME } from './constants';
-import { TOptions, TMessageIds, TConfig } from './types';
+import { TOptions, TMessageIds } from './types';
 import { TSESTree } from '@typescript-eslint/utils';
 import { AstHelper } from '../../utils/ast/AstHelper';
 import { TailwindHelper } from '../../utils/tailwind/TailwindHelper';
@@ -38,51 +38,7 @@ export default createEslintRule<TOptions, TMessageIds>({
       description: 'Extract Tailwind classes from className HTML attribute.',
       recommended: 'warn',
     },
-    schema: [
-      {
-        type: 'object',
-        // required: [],
-        properties: {
-          tailwindConfigPath: {
-            type: 'string',
-          },
-          classNameRegex: {
-            type: 'object',
-            oneOf: [
-              {
-                type: 'object',
-                required: ['regex'],
-                properties: {
-                  regex: {
-                    type: 'array',
-                    items: {
-                      instanceof: 'RegExp',
-                    },
-                  },
-                  overwrite: {
-                    type: 'boolean',
-                  },
-                },
-              },
-              {
-                instanceof: 'RegExp',
-              },
-            ],
-          },
-          callees: {
-            type: 'array',
-            items: { type: 'string', minLength: 0 },
-            uniqueItems: true,
-          },
-          tags: {
-            type: 'array',
-            items: { type: 'string', minLength: 0 },
-            uniqueItems: true,
-          },
-        },
-        additionalProperties: false,
-      },
-    ], // No options
+    schema: [], // No options
     messages: {
       invalidInline:
         'Invalid inline TailwindCSS class names with extract identifier present!',
@@ -90,12 +46,9 @@ export default createEslintRule<TOptions, TMessageIds>({
     },
     fixable: 'code',
   },
-  defaultOptions: [{}],
+  defaultOptions: [],
   create: (context) => {
-    let config: TConfig | null = null;
-    if (context.options.length > 0) {
-      config = context.options[0];
-    }
+    const config: any | null = null;
     const astHelper = new AstHelper<TMessageIds, TOptions>(context);
     const tailwindHelper = new TailwindHelper<TMessageIds, TOptions>(context);
     const classNameBuilder = new ClassNameBuilder();
@@ -231,7 +184,7 @@ export default createEslintRule<TOptions, TMessageIds>({
       JSXAttribute: (node) => {
         // Check whether JSXAttribute Node contains class names
         const { match, name: classNameAttributeName } =
-          astHelper.isClassNameAttribute(node, classNameRegex);
+          astHelper.isClassNameJSXAttribute(node, classNameRegex);
         if (!match) return;
 
         // Extract class names from Node

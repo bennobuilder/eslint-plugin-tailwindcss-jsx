@@ -19,7 +19,7 @@ export class ExtractedClassNamesTree {
    */
   public flatten(): ExtractedClassNamesNode[] {
     if (this.flattened != null) return this.flattened;
-    const flattened = this.flattenDeep(this);
+    const flattened = ExtractedClassNamesTree.flattenDeep(this);
     this.flattened = flattened;
     return flattened;
   }
@@ -33,7 +33,7 @@ export class ExtractedClassNamesTree {
    *
    * @param value - ClassNameExtractionTree or ClassNameExtraction
    */
-  private flattenDeep(
+  static flattenDeep(
     value: ExtractedClassNamesTree | ExtractedClassNamesNode | null
   ): ExtractedClassNamesNode[] {
     if (value == null) return [];

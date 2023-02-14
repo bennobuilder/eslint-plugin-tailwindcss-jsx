@@ -55,9 +55,9 @@ export const { sortTailwindClassList } = (() => {
    */
   function sortTailwindClassList(
     classList: string[],
-    tailwindContext: TTailwindContext
+    tailwindContext?: TTailwindContext
   ) {
-    if (tailwindContext.getClassOrder == null) {
+    if (tailwindContext?.getClassOrder == null) {
       console.warn(
         "No sorting applied! You've a too old TailwindCSS version which is not supported by this eslint-plugin."
       );
