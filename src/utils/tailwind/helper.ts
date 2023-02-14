@@ -1,44 +1,4 @@
 import { TTailwindContext } from 'tailwindcss/lib/lib/setupContextUtils';
-import { EXTRACT_IDENTIFIER_REGEX } from './constants';
-import { TGetIdentifierFromClassNameResponse } from './types';
-
-export const { getIdentifierFromClassName } = (() => {
-  function extractStringBetweenBrackets(value: string): string {
-    const startIndex = value.indexOf('[') + 1;
-    const endIndex = value.indexOf(']');
-    return value.substring(startIndex, endIndex);
-  }
-
-  /**
-   * Determines the identifier value from a given className
-   * and returns an object containing the updated className
-   * and extracted identifier.
-   *
-   * @param className - ClassName string to extract the identifier from.
-   * @returns
-   */
-  function getIdentifierFromClassName(
-    className: string
-  ): TGetIdentifierFromClassNameResponse {
-    const response: TGetIdentifierFromClassNameResponse = {
-      newClassName: className,
-      identifier: null,
-    };
-
-    // Extract identifier value from className and remove it in newClassName
-    if (EXTRACT_IDENTIFIER_REGEX.test(className)) {
-      const identifiers = EXTRACT_IDENTIFIER_REGEX.exec(className);
-      if (identifiers != null && identifiers.length > 0) {
-        response.identifier = extractStringBetweenBrackets(identifiers[0]);
-        response.newClassName = className.replace(EXTRACT_IDENTIFIER_REGEX, '');
-      }
-    }
-
-    return response;
-  }
-
-  return { getIdentifierFromClassName };
-})();
 
 export const { sortTailwindClassList } = (() => {
   function bigSign(bigIntValue: number) {

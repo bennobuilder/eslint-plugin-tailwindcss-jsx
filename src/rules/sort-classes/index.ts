@@ -1,8 +1,9 @@
 import { TSESTree } from '@typescript-eslint/utils';
 import { SharedConfigurationSettings } from '@typescript-eslint/utils/dist/ts-eslint';
-import { getConfig } from '../../options/shared/config';
+import { mergeOptionsWithSharedSettings } from '../../options/optionsHelper';
 import {
   SHARED_TAILWIND_SCHEMA,
+  TAILWIND_SCHEMA_DEFAULTS,
   TSharedTailwindSchema,
 } from '../../options/shared/schema';
 import { AstHelper } from '../../utils/ast/AstHelper';
@@ -12,8 +13,8 @@ import { ExtractedClassNamesTree } from '../../utils/ast/ExtractedClassNamesTree
 import { createEslintRule } from '../../utils/eslint/create-eslint-rule';
 import { docsUrl } from '../../utils/eslint/doc-url';
 import { areArraysEquals } from '../../utils/helper';
+import { sortTailwindClassList } from '../../utils/tailwind/helper';
 import { TailwindHelper } from '../../utils/tailwind/TailwindHelper';
-import { sortTailwindClassList } from '../extract-tailwind-classes/tailwindcss';
 
 // ------------------------------------------------------------------------------
 // Constants
@@ -23,8 +24,10 @@ export const RULE_NAME = 'sort-classes';
 export const RULE_MESSAGES = {
   invalidOrder: 'Invalid TailwindCSS class names order!',
 };
+export const DEFAULT_CONFIG: TConfig = TAILWIND_SCHEMA_DEFAULTS;
 
-export type TOptions = [TSharedTailwindSchema];
+export type TConfig = TSharedTailwindSchema;
+export type TOptions = [TConfig];
 export type TMessageIds = 'invalidOrder';
 
 //------------------------------------------------------------------------------
@@ -47,13 +50,13 @@ export default createEslintRule<TOptions, TMessageIds>({
     },
     fixable: 'code',
   },
-  defaultOptions: [{}],
+  defaultOptions: [DEFAULT_CONFIG],
   create: (context) => {
-    const config = getConfig<
-      TOptions,
-      SharedConfigurationSettings,
-      Required<TSharedTailwindSchema>
-    >(context.options, context.settings);
+    const config = mergeOptionsWithSharedSettings<Required<TConfig>>(
+      context.options,
+      context.settings,
+      DEFAULT_CONFIG // Merge default config as 'defaultOptions' doesn't seem to work
+    );
     const astHelper = new AstHelper<TMessageIds, TOptions>(context);
     const tailwindHelper = new TailwindHelper<TMessageIds, TOptions>(context);
     const classNameBuilder = new ClassNameBuilder();
@@ -86,14 +89,15 @@ export default createEslintRule<TOptions, TMessageIds>({
         }
         const prefix = extractedClassNamesNode.prefix + splitted.prefix;
         const suffix = splitted.suffix + extractedClassNamesNode.suffix;
+        let updateClasses: string[] = [...splitted.classes];
 
         // Sort classes
-        const sortedClasses = sortTailwindClassList(
-          splitted.classes,
+        updateClasses = sortTailwindClassList(
+          updateClasses,
           tailwindContext ?? undefined
         );
 
-        if (!areArraysEquals(splitted.classes, sortedClasses)) {
+        if (!areArraysEquals(splitted.classes, updateClasses)) {
           context.report({
             node, // TODO not report entire node just class names
             messageId: 'invalidOrder',
@@ -101,7 +105,7 @@ export default createEslintRule<TOptions, TMessageIds>({
               return fixer.replaceTextRange(
                 [start, end],
                 classNameBuilder.buildInlineClassName(
-                  sortedClasses,
+                  updateClasses,
                   splitted.whitespaces,
                   prefix,
                   suffix
