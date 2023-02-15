@@ -43,12 +43,12 @@ const About: React.FC = () => {
 
 export default About;
 
-const Text1 = \`
+const Text1 = `
   p-4
   text-xl
   font-bold
   lg:p-8
-\`;
+`;
 ```
 
 ## Rule Options
