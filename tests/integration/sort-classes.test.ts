@@ -1,8 +1,5 @@
 import { RuleTester } from 'eslint';
-import rule, {
-  RULE_NAME,
-  TOptions,
-} from '../../src/rules/extract-tailwind-classes';
+import rule, { RULE_NAME, TOptions } from '../../src/rules/sort-classes';
 import { createGenerateErrors } from '../utils';
 
 const dummyText = 'dummyText';
@@ -10,7 +7,6 @@ const testClassName = 'sm:p-0 p-0 container';
 const testClassNameSorted = 'container p-0 sm:p-0';
 
 const generateInvalidOrderErrors = createGenerateErrors('invalidOrder');
-const generateInvalidInlineErrors = createGenerateErrors('invalidInline');
 
 const ruleTester: RuleTester = new RuleTester({
   parser: require.resolve('@typescript-eslint/parser'),
@@ -55,7 +51,7 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
     output: `<div jeff="${testClassNameSorted}">${dummyText}</div>`,
     options: [
       {
-        classNameRegex: /\b(jeff)\b/g,
+        classNameRegex: /\b(jeff)\b/.source,
       },
     ] as TOptions,
     errors: [...generateInvalidOrderErrors(1)],
@@ -127,43 +123,6 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
     errors: [...generateInvalidOrderErrors(2)],
   },
 
-  // It should outsource class names if extract identifier present
-  {
-    code: `
-         import React from 'react';
-         const About: React.FC = () => {
-           return (
-             <div className="${testClassName}">
-               <p id="text1" className="text-xl p-4 lg:p-8 font-bold extract-[Text1]">About</p>
-             </div>
-           );
-         };
-         export default About;
-      `,
-    output: `
-         import React from 'react';
-         const About: React.FC = () => {
-           return (
-             <div className="${testClassNameSorted}">
-               <p id="text1" className={Text1}>About</p>
-             </div>
-           );
-         };
-         export default About;
-
-         const Text1 = \`
-           p-4
-           text-xl
-           font-bold
-           lg:p-8
-         \`;
-      `,
-    errors: [
-      ...generateInvalidOrderErrors(1),
-      ...generateInvalidInlineErrors(1),
-    ],
-  },
-
   // It should sort class names nested in a function
   {
     code: `
@@ -194,6 +153,18 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
     errors: [...generateInvalidOrderErrors(1)],
   },
   {
+    code: `jeff(\`${testClassName} \${"some other stuff"}\`)`,
+    output: `jeff(\`${testClassNameSorted} \${"some other stuff"}\`)`,
+    options: [
+      {
+        calleesRegex: /\b(jeff)\b/.source,
+      },
+    ] as TOptions,
+    errors: [...generateInvalidOrderErrors(1)],
+  },
+
+  // It should sort class names nested in a tagged template
+  {
     code: `
       const buttonClasses = jeff\`
           \${fullWidth ? "${testClassName}" : "${testClassName}"}
@@ -216,9 +187,9 @@ const invalidTestCases: RuleTester.InvalidTestCase[] = [
       \`;`,
     options: [
       {
-        tags: ['jeff'],
+        tagsRegex: /\b(jeff)\b/.source,
       },
-    ],
+    ] as TOptions,
     errors: [...generateInvalidOrderErrors(7)],
   },
 ];
@@ -227,5 +198,9 @@ ruleTester.run(RULE_NAME, rule as any, {
   valid: [
     // TODO
   ],
-  invalid: [...invalidTestCases],
+  invalid: [
+    ...invalidTestCases,
+
+    // WIP
+  ],
 });

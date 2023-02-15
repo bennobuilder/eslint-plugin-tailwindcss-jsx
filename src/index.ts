@@ -13,9 +13,18 @@ Object.keys(rulesObject).forEach(
   (ruleName) => (rules[ruleName] = rulesObject[ruleName].default)
 );
 
-const config = {
+const configs = {
   recommended: {
     plugins: ['tailwindcss-jsx'],
+    parserOptions: {
+      ecmaFeatures: {
+        jsx: true,
+      },
+    },
+    rules: {
+      'tailwindcss-jsx/sort-classes': 'warn',
+      'tailwindcss-jsx/extract-classes': 'off',
+    },
   },
 };
 
@@ -23,7 +32,4 @@ const config = {
 // Plugin Definition
 //------------------------------------------------------------------------------
 
-export {
-  rules,
-  // config,
-};
+export { rules, configs };

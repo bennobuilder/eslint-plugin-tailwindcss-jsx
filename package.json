@@ -1,7 +1,7 @@
 {
   "name": "eslint-plugin-tailwindcss-jsx",
   "version": "0.0.1",
-  "description": "Extracts all TailwindCss class names located in an HTML Tag, outsources the class names to a constant, and updates the HTML tag with the constant",
+  "description": "A ESLint plugin to enforce TailwindCSS best practices.",
   "keywords": [
     "tailwindcss-eslint-plugin",
     "eslintplugin",
@@ -18,6 +18,8 @@
     "dev:publish": "yalc publish",
     "dev:push": "pnpm run build && yalc push",
     "watch:push": "tsc-watch --onSuccess \"pnpm run dev:push\"",
+    "release:prepare": "pnpm run build",
+    "release:manual": "pnpm run release:prepare && npm publish",
     "pack": "pnpm pack",
     "test": "jest",
     "test:coverage": "jest --coverage",
