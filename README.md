@@ -28,7 +28,7 @@ You should also specify settings that will be shared across all the plugin rules
 {
   "settings": {
     "tailwindConfigPath": "tailwind.config.js", // Relative path to the TailwindCSS config file from the root directory
-    "attributeRegex": /\b(class|className)\b/g.source, // Regex to match Attribute Nodes that contain TailwindCSS class names
+    "attributesRegex": /\b(class|className)\b/g.source, // Regex to match Attribute Nodes that contain TailwindCSS class names
     "calleesRegex": /\b(clsx|cls|classnames)\b/g.source, // Regex to match Call Expression Nodes that contain TailwindCSS class names
     "tagsRegex": /\b(tss)\b/g.source, // Regex to match Tag Expression Nodes that contain TailwindCSS class names
   }
@@ -78,10 +78,20 @@ See [`eslint` documentation](https://eslint.org/docs/user-guide/configuring/conf
 **Note:** These configurations will enable JSX in [parser options](https://eslint.org/docs/latest/use/configure/language-options#specifying-parser-options).
 
 ### `eslint.config.js`
-> TODO
+> coming soon
 
 ## 📜 List of supported rules
-todo
+
+- ☑️ Set in the `recommended` configuration
+- 🔧 Automatically fixable by the [`--fix` CLI option](https://eslint.org/docs/user-guide/command-line-interface#--fix)
+
+| Name                                                                    | Description                                                                                                                                  | ☑️ | 🔧 |
+| :---------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- | :- | :- |
+| [sort-classes](docs/rules/sort-classes.md)                              | Enforces consistent order of TailwindCSS class names based on the officially recommended class name order.                                   | ☑️ | 🔧 |
+| [extract-classes](docs/rules/extract-classes.md)                        | Enforces the extraction of TailwindCSS class names if an identifier like `extract-[Container]` is present.                                   |   | 🔧 | 
+
+## 🆔 License
+`eslint-plugin-tailwindcss-jsx` is licensed under the [MIT License](https://opensource.org/license/mit-license-php/).
 
 ## 🙏 Contribution
 ### 📒 Resources
@@ -101,6 +111,6 @@ todo
    ```
 
 ## 🌟 Credits
-- [`prettier-plugin-tailwindcss`](https://github.com/tailwindlabs/prettier-plugin-tailwindcss)
-- [eslint-plugin-react](https://www.npmjs.com/package/eslint-plugin-react)
-- [`eslint-plugin-tailwindcss`](https://github.com/francoismassart/eslint-plugin-tailwindcss)
+- [`prettier-plugin-tailwindcss`](https://github.com/tailwindlabs/prettier-plugin-tailwindcss) - Inspiration in terms of official sorting
+- [eslint-plugin-react](https://www.npmjs.com/package/eslint-plugin-react) - Inspiration in terms of documentation
+- [`eslint-plugin-tailwindcss`](https://github.com/francoismassart/eslint-plugin-tailwindcss) - Inspiration in terms of integration tests

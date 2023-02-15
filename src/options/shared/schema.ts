@@ -2,7 +2,7 @@ import { JSONSchema4 } from '@typescript-eslint/utils/dist/json-schema';
 
 export const TAILWIND_SCHEMA_DEFAULTS: Required<TSharedTailwindSchema> = {
   tailwindConfigPath: 'tailwind.config.js',
-  attributeRegex: /\b(class|className)\b/g.source,
+  attributesRegex: /\b(class|className)\b/g.source,
   calleesRegex: /\b(clsx|cls|classnames)\b/g.source,
   tagsRegex: /\b(tss)\b/g.source,
 };
@@ -15,10 +15,10 @@ export const SHARED_TAILWIND_SCHEMA: JSONSchema4 = {
       type: 'string',
       default: TAILWIND_SCHEMA_DEFAULTS.tailwindConfigPath,
     },
-    attributeRegex: {
+    attributesRegex: {
       type: 'string',
       format: 'regex',
-      default: TAILWIND_SCHEMA_DEFAULTS.attributeRegex,
+      default: TAILWIND_SCHEMA_DEFAULTS.attributesRegex,
     },
     calleesRegex: {
       type: 'string',
@@ -48,7 +48,7 @@ export type TSharedTailwindSchema = {
    *
    * @default /\b(class|className)\b/g
    */
-  attributeRegex?: string;
+  attributesRegex?: string;
   /**
    * Regex to identify relevant Callees
    * that work with TailwindCSS class names and should be matched and sorted
