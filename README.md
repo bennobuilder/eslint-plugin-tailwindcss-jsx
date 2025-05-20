@@ -1,4 +1,8 @@
-<img src="https://raw.githubusercontent.com/bennodev19/eslint-plugin-tailwindcss-jsx/master/.github/banner.png" alt="prettier-plugin-tailwindcss" />
+<img src="https://raw.githubusercontent.com/bennodev19/eslint-plugin-tailwindcss-jsx/master/.github/banner.png" alt="eslint-plugin-tailwindcss" />
+
+> ⚠️ **Deprecated**: This project is no longer actively maintained.
+> For a more future-proof solution, consider using the official [Prettier plugin for Tailwind CSS](https://github.com/tailwindlabs/prettier-plugin-tailwindcss).
+
 
 An [ESLint](https://eslint.org/) plugin for [Tailwind CSS](https://tailwindcss.com/) v3.0+ that enforces best practices and consistency with focus on [ReactJS](https://reactjs.org/) (`.jsx` & `.tsx`).
 
